@@ -236,6 +236,29 @@ The following questions are provided to help guide your thinking and inspire pot
 
 ---
 
+## Data Cleaning Process
+
+The following datasets were cleaned and preprocessed for analysis:
+
+### Files Modified
+- `data/Inventory Management/dim_skus.csv`: Stock keeping unit definitions
+- `data/Inventory Management/dim_stock_categories.csv`: Product category classifications
+- `data/Inventory Management/dim_taxonomy_terms.csv`: Taxonomy and classification terms
+- `data/Inventory Management/dim_users.csv`: User and customer information
+- `README.md`: Added data cleaning documentation
+
+### Cleaning Operations
+1. **Missing Value Handling**: Filled null values with appropriate defaults based on data type (0 for numeric IDs, 'none' for text fields, 'unknown' for categorical data)
+2. **Duplicate Removal**: Removed duplicate records based on unique ID fields
+3. **Outlier Detection**: Applied z-score method (threshold: 2-3) to remove statistical outliers in numeric columns
+4. **Type Conversion**: Converted Unix timestamps to readable date format
+5. **Data Validation**: Dropped records with missing critical fields (price, status)
+
+### Implementation
+Data cleaning was performed using Python with pandas and scipy libraries. The cleaning notebook is available at `data_cleaning.ipynb`.
+
+---
+
 ## Evaluation Criteria
 
 ### Documentation Quality
