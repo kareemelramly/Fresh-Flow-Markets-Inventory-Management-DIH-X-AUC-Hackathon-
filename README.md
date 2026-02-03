@@ -74,7 +74,13 @@ Due to file size limitations, the datasets are provided via GitHub Releases.
 ### Data Notes
 - All timestamps are UNIX integers (use `FROM_UNIXTIME()` in MySQL)
 - All monetary values are in DKK (Danish Krone)
+- **Data Quality**: All CSV files have been cleaned and validated
+  - Fixed malformed CSV parsing errors in `dim_add_ons.csv` and `dim_items.csv`
+  - Removed 2,387 duplicate rows from `most_ordered.csv`
+  - Trimmed whitespace from ~10M values across all files
+  - Backups available in `data/Inventory Management - Quality Backup/`
 - See `data/README.md` for detailed documentation
+- See `database/DATABASE_SCHEMA.md` for complete database schema
 
 ---
 
