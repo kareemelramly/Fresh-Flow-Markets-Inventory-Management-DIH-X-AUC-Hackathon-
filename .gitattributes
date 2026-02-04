@@ -1,3 +1,7 @@
 data/Inventory[[:space:]]Management/*.csv filter=lfs diff=lfs merge=lfs -text
 *.db filter=lfs diff=lfs merge=lfs -text
+<<<<<<< HEAD
 *.csv filter=lfs diff=lfs merge=lfs -text lockable
+=======
+database/setup_database.py filter=lfs diff=lfs merge=lfs -text
+>>>>>>> b5e412d808448ae294943a0a203f33239a6fbc36
