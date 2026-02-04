@@ -1,5 +1,26 @@
 # Deloitte x AUC Hackathon
 
+## 📊 Customer Loyalty Analysis Deliverable
+
+**🎯 NEW:** Complete customer loyalty analysis has been delivered! 
+
+**Location:** [`Customer Loyalty Analysis/`](./Customer%20Loyalty%20Analysis/)
+
+**Quick Links:**
+- 📓 [Analysis Notebook](./Customer%20Loyalty%20Analysis/customer_loyalty_analysis.ipynb) - Comprehensive RFM segmentation
+- 📊 [Visualizations Gallery](./Customer%20Loyalty%20Analysis/visualizations/) - 8 professional charts
+- 📄 [Executive Summary](./Customer%20Loyalty%20Analysis/DELIVERABLE_SUMMARY.md) - Key findings
+- 💾 [Data Exports](./Customer%20Loyalty%20Analysis/exports/) - 9 CSV files + insights report
+- ✅ [Completion Status](./Customer%20Loyalty%20Analysis/COMPLETION_STATUS.md) - Full deliverable inventory
+
+**Key Results:**
+- ✅ 1,900 customers analyzed across 5 RFM segments
+- ✅ 8 high-resolution visualizations (300 DPI)
+- ✅ Campaign timing insights (Friday 11 AM-2 PM optimal)
+- ✅ VIP customer analysis and recommendations
+
+---
+
 ## Introduction
 
 Welcome to the Deloitte x AUC Hackathon. As potential future consultants at Deloitte, you will face a reality that defines the consulting profession: clients come to us with problems, not solutions.
@@ -81,6 +102,36 @@ Due to file size limitations, the datasets are provided via GitHub Releases.
   - Backups available in `data/Inventory Management - Quality Backup/`
 - See `data/README.md` for detailed documentation
 - See `database/DATABASE_SCHEMA.md` for complete database schema
+
+### ⚠️ Important Data Limitation for Customer Loyalty Analysis
+
+**Critical Finding: Guest Checkout Dominance**
+
+The `fct_orders` dataset contains **335,214 total orders**, but presents a significant challenge for customer loyalty tracking:
+
+- **335,171 orders (99.99%)** are guest checkouts with `user_id=0` (anonymous)
+- **Only 43 orders (0.01%)** from 28 registered customers with trackable `user_id > 0`
+- **Unknown number of unique customers** because guest orders cannot be linked to individuals
+
+**What This Means:**
+- Each row in `fct_orders` = 1 purchase transaction
+- `user_id=0` indicates anonymous checkout (no customer account)
+- Multiple orders from the same guest customer all show `user_id=0`
+- **Cannot track repeat purchases, customer lifetime value, or loyalty for 99.99% of orders**
+
+**Impact on Analysis:**
+- Traditional customer loyalty analysis is severely limited
+- RFM segmentation only possible for 28 registered customers
+- Customer profiling and personalization not feasible for guest orders
+- Recommendation: Focus on merchant-level patterns, session-based analytics, or implement guest email capture
+
+**Root Cause:** Platform allows anonymous checkout without requiring customer registration or capturing identifying information (email/phone).
+
+**Recommendation for Fresh Flow Markets:**
+1. Implement guest email/phone capture at checkout
+2. Incentivize account creation (loyalty points, discounts)
+3. Enable post-purchase account linking for historical orders
+4. Consider session-based analytics or device fingerprinting for guest behavior tracking
 
 ---
 

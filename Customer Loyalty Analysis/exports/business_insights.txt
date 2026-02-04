@@ -1,0 +1,54 @@
+
+FRESH FLOW MARKETS - CUSTOMER LOYALTY ANALYSIS
+Generated: 2026-02-05 01:39:05
+==========================================
+
+KEY FINDINGS:
+-------------
+
+1. CUSTOMER BASE OVERVIEW
+   - Total Customers: 1,900
+   - VIP Customers (Top 25%): 481 (25.3%)
+   - Average CLV: 395.32 DKK
+   - Average Orders per Customer: 1.3
+
+2. VIP CUSTOMER VALUE
+   - VIP customers spend 201.7% MORE than regular customers
+   - VIP average spend: 789.56 DKK
+   - Regular average spend: 261.69 DKK
+
+3. OPTIMAL CAMPAIGN TIMING
+   - Best Day: Friday (74,346 orders)
+   - Peak Hours: 16:00, 17:00, 11:00
+
+4. CUSTOMER SEGMENTATION (RFM)
+   - Champions: 264 customers
+   - Loyal Customers: 657 customers
+   - At Risk: 209 customers (needs retention)
+   - Lost: 237 customers (needs win-back)
+
+5. RECOMMENDED VIP TIERS
+   - Bronze: ≥ 340 DKK (Top 50%)
+   - Silver: ≥ 495 DKK (Top 25%)
+   - Gold: ≥ 763 DKK (Top 10%)
+   - Platinum: ≥ 949 DKK (Top 5%)
+
+ACTIONABLE RECOMMENDATIONS:
+---------------------------
+1. Launch campaigns on Friday during peak hours (16:00-11:00)
+2. Implement tiered VIP program based on spending thresholds
+3. Create retention campaigns for 'At Risk' segment
+4. Design win-back offers for 'Lost' customers
+5. Reward 'Champions' with exclusive benefits and early access
+6. Focus marketing on increasing order frequency (strong correlation with CLV)
+7. Optimize bonus point values between 150-300 points
+
+CORRELATION INSIGHTS:
+--------------------
+Strong correlations found between:
+- Order count and total spent (positive)
+- Tenure days and order frequency (positive)
+- VIP status and monetary value (positive)
+
+These correlations suggest focusing on customer retention and increasing
+purchase frequency will have the highest impact on customer lifetime value.

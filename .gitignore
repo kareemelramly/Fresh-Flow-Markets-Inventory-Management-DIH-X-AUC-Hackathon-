@@ -37,6 +37,13 @@ env/
 .DS_Store
 Thumbs.db
 
+# Database files
+*.db
+*.sqlite
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Database backups
 *.db-backup
 *.sqlite-backup
