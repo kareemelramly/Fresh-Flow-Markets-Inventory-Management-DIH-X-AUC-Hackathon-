@@ -15,7 +15,7 @@ scipy>=1.11.0               # Statistical functions
 xgboost>=2.0.0              # Gradient boosting for demand forecasting
 prophet>=1.1.4              # Time series forecasting (Facebook Prophet)
 statsmodels>=0.14.0         # Statistical modeling and time series
-
+lightgbm
 # ─────────────────────────────────────────────────────────────────
 # Data Visualization
 # ─────────────────────────────────────────────────────────────────
@@ -71,6 +71,7 @@ requests>=2.31.0            # HTTP library
 python-dateutil>=2.8.0      # Date/time utilities
 joblib>=1.3.0               # ML model serialization
 redis>=5.0.0                # Caching (optional for production)
+scikit-learn>=1.3.0         # ML algorithms (classification)
 
 # ─────────────────────────────────────────────────────────────────
 # Data Quality & Cleaning

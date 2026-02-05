@@ -1,0 +1,37 @@
+================================================================================
+FEATURE IMPORTANCE ANALYSIS
+================================================================================
+
+                         feature    importance
+6    balance_discrepancy_pct_max  2.154259e-01
+4               balance_diff_max  1.173204e-01
+5   balance_discrepancy_pct_mean  1.105049e-01
+0               balance_diff_sum  1.041699e-01
+10             vat_component_sum  9.325021e-02
+2               balance_diff_std  7.469251e-02
+11          num_transactions_sum  7.452968e-02
+7          transaction_total_sum  7.104432e-02
+1              balance_diff_mean  3.451741e-02
+8        transaction_total_count  3.406709e-02
+13          closing_balance_mean  2.166632e-02
+3               balance_diff_min  1.921103e-02
+9         transaction_total_mean  1.470753e-02
+12          opening_balance_mean  1.437641e-02
+15              total_amount_sum  3.325597e-04
+19              cash_amount_mean  8.069927e-05
+18               cash_amount_sum  5.392926e-05
+14                      id_count  4.926016e-05
+16             total_amount_mean  5.107080e-18
+17              total_amount_std  1.021285e-18
+
+================================================================================
+INTERPRETATION
+================================================================================
+Top Risk Feature: balance_discrepancy_pct_max
+Importance Score: 0.2154
+
+Features with importance > 10%:
+  - balance_discrepancy_pct_max: 0.2154 (21.54%)
+  - balance_diff_max: 0.1173 (11.73%)
+  - balance_discrepancy_pct_mean: 0.1105 (11.05%)
+  - balance_diff_sum: 0.1042 (10.42%)
