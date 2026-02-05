@@ -149,7 +149,7 @@ def show_inventory():
     
   
 
-# Page routing
+# Page routing 7777777
 if page == "Main Statistics":
     show_dashboard()
 elif page == "Inventory Management":
