@@ -1,0 +1,25 @@
+FRESH FLOW MARKETS - OPERATIONAL, MARKETING & PRICING ANALYSIS
+================================================================================
+Generated: 2026-02-05 02:38:31
+================================================================================
+
+
+🎯 QUALITY & SATISFACTION:
+   • Average order processing time: 157.0 minutes
+   • Median processing time: 0.2 minutes
+   ⚠️  RECOMMENDATION: Processing time exceeds 1 hour - optimize kitchen workflow
+   • Peak hour (16:00) processing time: 182.6 minutes
+   💡 RECOMMENDATION: Add staff during peak hours (15:00 to 18:00)
+   • Staff performance gap: 865.4%
+   💡 RECOMMENDATION: Implement training program to standardize performance
+
+🎯 MARKETING EFFICIENCY:
+   • Bonus code usage rate: 0.0%
+   ⚠️  RECOMMENDATION: Low bonus code usage - improve awareness campaigns
+   • Bonus code orders are 15.2% lower than regular orders
+   💡 RECOMMENDATION: Restructure bonus codes to encourage larger orders
+
+🎯 PRICING & REVENUE:
+   • Average discount offered: 24.6%
+   • Most revenue-generating discount range: No Discount
+   💡 RECOMMENDATION: Focus promotions in the No Discount discount range
