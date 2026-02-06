@@ -35,7 +35,7 @@ if 'page' not in st.session_state:
     st.session_state.page = "Main Statistics"
 
 # Create clickable text links using columns
-nav_col1, nav_col2, nav_col3, _ = st.columns([1.5, 2, 2, 5])
+_, nav_col1, nav_col2, nav_col3, logo_col = st.columns([1, 3, 3, 3, 2])
 
 with nav_col1:
     if st.button("Main Statistics"):
@@ -51,6 +51,8 @@ with nav_col3:
     if st.button("Forecasting Suggestions"):
         st.session_state.page = "Forecasting Suggestions"
         st.rerun()
+with logo_col:
+    st.image("logo.png.jpeg", width=80)
 
 # Update the 'page' variable used for routing in the rest of your script
 page = st.session_state.page

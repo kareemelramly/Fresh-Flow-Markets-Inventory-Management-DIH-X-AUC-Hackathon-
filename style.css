@@ -10,7 +10,20 @@
 
 /* 3. Navigation Row Container styling */
 [data-testid="column"] {
-    background-color: #1E5631;
+    background /* Align the logo to the right and center it vertically in the nav bar */
+    [data-testid="column"]:last-child
+
+{
+    display: flex;
+    justify-content: flex-end; /* Pushes logo to the far right */
+    align-items: center; /* Centers it vertically with the buttons */
+    padding-right: 20px; /* Gives it some breathing room from the edge */
+}
+
+/* Ensure the image doesn't have a border */
+[data-testid="stImage"] img {
+    border: none !important;
+}-color: #1E5631;
     padding: 10px;
 }
 
@@ -63,3 +76,5 @@ h3, p, span, label, .stMetric {
     [data-testid="stSidebar"] .stCaption {
         color: #000000 !important; /* Pure Black */
     }
+
+
