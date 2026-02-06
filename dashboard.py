@@ -426,3 +426,25 @@ elif page == "Inventory Management":
     show_inventory()
 elif page == "Forecasting Suggestions":
     show_forecasting()
+
+    # --- UNIVERSAL FOOTER ---
+st.markdown("---") # Visual separator
+footer_col1, footer_col2, footer_col3 = st.columns(3)
+
+with footer_col1:
+    st.markdown("### 📞 Contact Us")
+    st.caption("Fresh Flow Markets HQ")
+    st.caption("Email: support@freshflow.com")
+    st.caption("Phone: +1 (555) 012-3456")
+
+with footer_col2:
+    st.markdown("### 🛠️ Technical Support")
+    st.caption("System Status: Online")
+    st.caption("Documentation: [Click Here](#)")
+    st.caption("Bug Report: [Open Ticket](#)")
+
+with footer_col3:
+    st.markdown("### 🏢 About")
+    st.caption("Deloitte x AUC Hackathon Project")
+    st.caption("© 2026 Fresh Flow Markets")
+    st.caption("v1.0.4-stable")
