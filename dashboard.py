@@ -29,45 +29,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- NEW TOP NAVIGATION ---
-# --- TOP NAVIGATION ADJUSTMENT ---
-
-st.markdown(
-    """
-    <style>
-        /* Adjust page top padding */
-        .block-container {
-            padding-top: 3.5rem; 
-        }
-        
-        /* Style buttons to look like clickable text labels */
-        div.stButton > button {
-            border: none;
-            background-color: transparent;
-            color: #FAFAFA; /* Matches default light text, adjust if needed */
-            padding: 0;
-            font-size: 16px;
-            font-weight: 400;
-        }
-        
-        /* Remove hover border/background */
-        div.stButton > button:hover {
-            color: #FF4B4B; /* Changes color on hover */
-            background-color: transparent;
-            border: none;
-        }
-
-        /* Active state/focus styling */
-        div.stButton > button:focus {
-            color: #FF4B4B;
-            background-color: transparent;
-            box-shadow: none;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
+with open("style.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 # Initialize session state for page routing if it doesn't exist
 if 'page' not in st.session_state:
     st.session_state.page = "Main Statistics"
