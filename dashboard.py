@@ -380,12 +380,20 @@ def show_forecasting():
                         result = response.json()
                         if result.get('success'):
                             reorder_data = result['data']
+                            recommendations = reorder_data.get('recommendations', {})
+                            
+                            # Display key metrics
                             cols = st.columns(4)
-                            with cols[0]: st.metric("Reorder Quantity", f"{reorder_data.get('reorder_quantity', 0):.0f}")
-                            with cols[1]: st.metric("Reorder Point", f"{reorder_data.get('reorder_point', 0):.0f}")
-                            with cols[2]: st.metric("Safety Stock", f"{reorder_data.get('safety_stock', 0):.0f}")
-                            with cols[3]: st.metric("Days Until Reorder", f"{reorder_data.get('days_until_reorder', 0):.0f}")
-                            if 'recommendation' in reorder_data: st.info(f"💡 {reorder_data['recommendation']}")
+                            with cols[0]: st.metric("Reorder Quantity", f"{recommendations.get('reorder_quantity', 0):.0f}")
+                            with cols[1]: st.metric("Safety Stock", f"{recommendations.get('safety_stock_level', 0):.0f}")
+                            with cols[2]: st.metric("Predicted Demand", f"{reorder_data.get('predicted_demand', 0):.0f}")
+                            with cols[3]: st.metric("Urgency", recommendations.get('urgency', 'N/A').upper())
+                            
+                            # Additional info
+                            if recommendations.get('reorder_needed'):
+                                st.warning(f"⚠️ Reorder needed! Stockout expected: {recommendations.get('days_until_stockout', 'N/A')}")
+                            else:
+                                st.success("✅ Stock levels adequate")
                         else: st.error(f"Error: {result.get('error', 'Unknown error')}")
                 except Exception as e: st.error(f"Failed: {str(e)}")
 
@@ -401,7 +409,26 @@ def show_forecasting():
                     result = response.json()
                     if result.get('success'):
                         forecasts = result.get('forecasts', [])
-                        summary_data = [{'Item ID': f.get('item_id'), 'Predicted Demand': f"{f.get('predicted_demand', 0):.1f}", 'Confidence': f"{f.get('confidence', 0):.0%}", 'Recommendation': f.get('recommendation', 'N/A')} for f in forecasts]
+                        summary_data = []
+                        for f in forecasts:
+                            # Calculate total demand from predictions array
+                            predictions = f.get('predictions', [])
+                            if predictions:
+                                total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
+                                avg_daily = total_demand / len(predictions) if predictions else 0
+                                summary_data.append({
+                                    'Item ID': f.get('item_id'),
+                                    'Total Demand': f"{total_demand:.1f}",
+                                    'Avg Daily': f"{avg_daily:.1f}",
+                                    'Status': f.get('status', 'N/A')
+                                })
+                            else:
+                                summary_data.append({
+                                    'Item ID': f.get('item_id'),
+                                    'Total Demand': '0.0',
+                                    'Avg Daily': '0.0',
+                                    'Status': 'No data'
+                                })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
 
