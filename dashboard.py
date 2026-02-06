@@ -416,28 +416,18 @@ def show_forecasting():
                             if predictions:
                                 total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
                                 avg_daily = total_demand / len(predictions) if predictions else 0
-                                
-                                # Make status more user-friendly
-                                status = f.get('status', 'N/A')
-                                if status == 'model_not_available':
-                                    status_display = '⚠️ Fallback Estimate'
-                                elif status == 'success':
-                                    status_display = '✅ ML Prediction'
-                                else:
-                                    status_display = status
-                                
                                 summary_data.append({
                                     'Item ID': f.get('item_id'),
                                     'Total Demand': f"{total_demand:.1f}",
                                     'Avg Daily': f"{avg_daily:.1f}",
-                                    'Status': status_display
+                                    'Status': f.get('status', 'N/A')
                                 })
                             else:
                                 summary_data.append({
                                     'Item ID': f.get('item_id'),
                                     'Total Demand': '0.0',
                                     'Avg Daily': '0.0',
-                                    'Status': '❌ No Data'
+                                    'Status': 'No data'
                                 })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
