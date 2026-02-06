@@ -12,7 +12,7 @@ import traceback
 ml_bp = Blueprint('ml', __name__)
 
 # Initialize ML service
-ml_service = MLPredictionService(models_dir='models')
+ml_service = MLPredictionService(models_dir='ML_Models')
 
 # ============================================================================
 # HEALTH CHECK & STATUS
