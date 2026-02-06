@@ -51,6 +51,18 @@ class MLPredictionService:
         }
         # Cache for item-specific forecast models
         self.item_forecast_models = {}
+        
+        # Category mapping for items without specific models
+        self.category_keywords = {
+            'Sodavand': ['cola', 'sodavand', 'naturfrisk', 'lemonade', 'fanta', 'sprite', 'pepsi', 'soda'],
+            'Vand': ['water', 'vand', 'kildevand', 'still water', 'sparkling'],
+            'Øl': ['øl', 'beer', 'fadøl', 'pilsner', 'ipa', 'lager', 'ale'],
+            'Cappuccino': ['cappuccino', 'latte', 'americano', 'kaffe', 'espresso', 'coffee', 'flat white'],
+            'Lille_box': ['lille box', 'small box', 'lille'],
+            'Mellem_box': ['mellem box', 'medium box', 'mellem', 'stor box', 'large box'],
+            'Ristet_Hotdog': ['hotdog', 'ristet', 'fransk', 'pølse'],
+            'Øl_Vand_Spiritus': ['spiritus', 'vodka', 'gin', 'rum'],
+        }
     
     def _load_model_artifacts(self, model_type: str) -> Dict[str, Any]:
         """Load model artifacts from disk"""
@@ -129,6 +141,29 @@ class MLPredictionService:
     # 1. DEMAND & STOCK FORECASTER
     # ========================================================================
     
+    def _map_item_to_category(self, item_name: str) -> Optional[str]:
+        """
+        Map an item name to a trained category model using keyword matching
+        
+        Args:
+            item_name: The item's name/title
+            
+        Returns:
+            Category name if found, None otherwise
+        """
+        if not item_name:
+            return None
+            
+        item_lower = item_name.lower()
+        
+        # Check each category's keywords
+        for category, keywords in self.category_keywords.items():
+            for keyword in keywords:
+                if keyword.lower() in item_lower:
+                    return category
+        
+        return None
+    
     def _load_item_forecast_model(self, item_name: str) -> Optional[Dict[str, Any]]:
         """Load item-specific forecast model and scaler"""
         cache_key = item_name
@@ -140,15 +175,26 @@ class MLPredictionService:
         if not base_path:
             return None
         
-        # Try to load model and scaler for this item
+        # First try exact match
         model_file = f"{item_name}.joblib"
         scaler_file = f"{item_name}_scaler.joblib"
         
         model_path = os.path.join(self.models_dir, base_path, config.get('models_subdir', ''), model_file)
         scaler_path = os.path.join(self.models_dir, base_path, config.get('scalers_subdir', ''), scaler_file)
         
+        # If exact match not found, try category mapping
         if not os.path.exists(model_path):
-            return None
+            category = self._map_item_to_category(item_name)
+            if category:
+                model_file = f"{category}.joblib"
+                scaler_file = f"{category}_scaler.joblib"
+                model_path = os.path.join(self.models_dir, base_path, config.get('models_subdir', ''), model_file)
+                scaler_path = os.path.join(self.models_dir, base_path, config.get('scalers_subdir', ''), scaler_file)
+                
+                if not os.path.exists(model_path):
+                    return None
+            else:
+                return None
         
         try:
             artifacts = {
