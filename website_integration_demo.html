@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fresh Flow Markets - API Integration Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            color: #666;
+        }
+        
+        .api-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .api-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .response-box {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .response-box pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌱 Fresh Flow Markets</h1>
+            <p>ML Prediction API - Website Integration Demo</p>
+            <p style="margin-top: 10px;"><strong>API Status:</strong> <span id="apiStatus">Checking...</span></p>
+        </header>
+
+        <!-- Campaign Prediction -->
+        <div class="api-section">
+            <h2>📊 Campaign ROI Predictor</h2>
+            <form id="campaignForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Duration (days)</label>
+                        <input type="number" id="duration_days" value="7" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Points</label>
+                        <input type="number" id="points" value="200" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Discount (%)</label>
+                        <input type="number" id="discount_percent" value="20" min="0" max="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Minimum Spend (DKK)</label>
+                        <input type="number" id="minimum_spend" value="100" min="0" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Predict Campaign Performance</button>
+            </form>
+            <div id="campaignResponse" class="response-box" style="display: none;"></div>
+        </div>
+
+        <!-- Demand Forecast -->
+        <div class="api-section">
+            <h2>📈 Demand Forecaster</h2>
+            <form id="demandForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Item ID</label>
+                        <input type="number" id="demand_item_id" value="123" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Forecast Days</label>
+                        <input type="number" id="forecast_days" value="7" min="1" max="30" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Get Demand Forecast</button>
+            </form>
+            <div id="demandResponse" class="response-box" style="display: none;"></div>
+        </div>
+
+        <!-- Customer Churn -->
+        <div class="api-section">
+            <h2>👥 Customer Churn Predictor</h2>
+            <form id="churnForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Customer ID</label>
+                        <input type="number" id="customer_id" value="1001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Recent Waiting Time (min)</label>
+                        <input type="number" id="waiting_time" value="25" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Recent Rating (1-5)</label>
+                        <input type="number" id="rating" value="3.5" step="0.1" min="1" max="5" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Points Redeemed</label>
+                        <input type="number" id="points_redeemed" value="150" required>
+                    </div>
+                    <div class="form-group">
+                        <label>VIP Threshold</label>
+                        <input type="number" id="vip_threshold" value="500" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Days Since Last Order</label>
+                        <input type="number" id="days_since_last" value="45" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Check Churn Risk</button>
+            </form>
+            <div id="churnResponse" class="response-box" style="display: none;"></div>
+        </div>
+
+        <!-- Cashier Risk -->
+        <div class="api-section">
+            <h2>🔍 Cashier Integrity Monitor</h2>
+            <form id="cashierForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Cashier ID</label>
+                        <input type="number" id="cashier_id" value="501" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Shift Date</label>
+                        <input type="date" id="shift_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Order Count</label>
+                        <input type="number" id="order_count" value="45" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Balance (DKK)</label>
+                        <input type="number" id="expected_balance" value="5000" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Actual Balance (DKK)</label>
+                        <input type="number" id="actual_balance" value="4950" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Total VAT (DKK)</label>
+                        <input type="number" id="total_vat" value="1000" step="0.01" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Analyze Risk</button>
+            </form>
+            <div id="cashierResponse" class="response-box" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:5000/api';
+        const ML_API_URL = 'http://localhost:5000/api/ml';
+
+        // Set today's date for cashier form
+        document.getElementById('shift_date').valueAsDate = new Date();
+
+        // Check API Status
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/../health`);
+                const data = await response.json();
+                document.getElementById('apiStatus').innerHTML = 
+                    `<span style="color: green;">✓ Connected (v${data.api_version})</span>`;
+            } catch (error) {
+                document.getElementById('apiStatus').innerHTML = 
+                    `<span style="color: red;">✗ Disconnected</span>`;
+            }
+        }
+
+        // Utility function to make API calls
+        async function callAPI(endpoint, method = 'GET', data = null) {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            const response = await fetch(`${ML_API_URL}${endpoint}`, options);
+            return await response.json();
+        }
+
+        // Display response
+        function displayResponse(elementId, data, success = true) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = 'response-box ' + (success ? 'success' : 'error');
+            element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        // Campaign Form
+        document.getElementById('campaignForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'Predicting...';
+
+            const data = {
+                duration_days: parseInt(document.getElementById('duration_days').value),
+                points: parseInt(document.getElementById('points').value),
+                discount_percent: parseFloat(document.getElementById('discount_percent').value),
+                minimum_spend: parseFloat(document.getElementById('minimum_spend').value)
+            };
+
+            try {
+                const result = await callAPI('/campaigns/predict', 'POST', data);
+                displayResponse('campaignResponse', result, result.success);
+            } catch (error) {
+                displayResponse('campaignResponse', { error: error.message }, false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Predict Campaign Performance';
+            }
+        });
+
+        // Demand Form
+        document.getElementById('demandForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'Forecasting...';
+
+            const data = {
+                item_id: parseInt(document.getElementById('demand_item_id').value),
+                forecast_days: parseInt(document.getElementById('forecast_days').value)
+            };
+
+            try {
+                const result = await callAPI('/forecast/demand', 'POST', data);
+                displayResponse('demandResponse', result, result.success);
+            } catch (error) {
+                displayResponse('demandResponse', { error: error.message }, false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Demand Forecast';
+            }
+        });
+
+        // Churn Form
+        document.getElementById('churnForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+
+            const data = {
+                customer_id: parseInt(document.getElementById('customer_id').value),
+                recent_waiting_time: parseFloat(document.getElementById('waiting_time').value),
+                recent_rating: parseFloat(document.getElementById('rating').value),
+                points_redeemed: parseInt(document.getElementById('points_redeemed').value),
+                vip_threshold: parseFloat(document.getElementById('vip_threshold').value),
+                days_since_last_order: parseInt(document.getElementById('days_since_last').value)
+            };
+
+            try {
+                const result = await callAPI('/customers/churn-risk', 'POST', data);
+                displayResponse('churnResponse', result, result.success);
+            } catch (error) {
+                displayResponse('churnResponse', { error: error.message }, false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Check Churn Risk';
+            }
+        });
+
+        // Cashier Form
+        document.getElementById('cashierForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+
+            const data = {
+                cashier_id: parseInt(document.getElementById('cashier_id').value),
+                shift_date: document.getElementById('shift_date').value,
+                order_count: parseInt(document.getElementById('order_count').value),
+                expected_balance: parseFloat(document.getElementById('expected_balance').value),
+                actual_balance: parseFloat(document.getElementById('actual_balance').value),
+                total_vat: parseFloat(document.getElementById('total_vat').value)
+            };
+
+            try {
+                const result = await callAPI('/operations/cashier-risk', 'POST', data);
+                displayResponse('cashierResponse', result, result.success);
+            } catch (error) {
+                displayResponse('cashierResponse', { error: error.message }, false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Analyze Risk';
+            }
+        });
+
+        // Initialize
+        checkAPIStatus();
+        setInterval(checkAPIStatus, 30000); // Check every 30 seconds
+    </script>
+</body>
+</html>
