@@ -343,22 +343,29 @@ def show_forecasting():
                             if 'item_details' in forecast_data:
                                 item_info = forecast_data['item_details']
                                 st.success(f"**Forecast for:** {item_info.get('name', 'Unknown Item')}")
-                                cols = st.columns(3)
-                                with cols[0]: st.metric("Current Price", f"${item_info.get('current_price', 0):.2f}")
-                                with cols[1]: st.metric("Current Stock", item_info.get('current_stock', 'N/A'))
-                                with cols[2]: st.metric("Minimum Stock", item_info.get('minimum_stock', 'N/A'))
+                                st.metric("Current Price", f"${item_info.get('current_price', 0):.2f}")
+                            
+                            # Show forecast status message if available
+                            if 'message' in forecast_data:
+                                st.info(f"ℹ️ {forecast_data['message']}")
                             
                             st.subheader("Forecast Results")
-                            cols = st.columns(3)
-                            with cols[0]: st.metric("Predicted Demand", f"{forecast_data.get('predicted_demand', 0):.1f} units")
-                            with cols[1]: st.metric("Confidence Level", f"{forecast_data.get('confidence', 0):.0%}")
-                            with cols[2]: st.metric("Recommendation", forecast_data.get('recommendation', 'N/A'))
                             
-                            if 'daily_forecast' in forecast_data:
-                                daily_df = pd.DataFrame(forecast_data['daily_forecast'])
+                            # Calculate total demand from predictions array
+                            if 'predictions' in forecast_data:
+                                daily_df = pd.DataFrame(forecast_data['predictions'])
+                                total_demand = daily_df['predicted_quantity'].sum()
+                                avg_daily_demand = daily_df['predicted_quantity'].mean()
+                                
+                                cols = st.columns(2)
+                                with cols[0]: st.metric("Total Predicted Demand", f"{total_demand:.1f} units")
+                                with cols[1]: st.metric("Avg Daily Demand", f"{avg_daily_demand:.1f} units/day")
+                                
                                 fig = px.line(daily_df, x='date', y='predicted_quantity', title=f'{forecast_days}-Day Demand Forecast')
                                 st.plotly_chart(fig, width="stretch")
                                 st.dataframe(daily_df, width="stretch", hide_index=True)
+                            else:
+                                st.warning("No forecast predictions available in the response.")
                         else:
                             st.error(f"Error: {result.get('error', 'Unknown error')}")
                     else:
