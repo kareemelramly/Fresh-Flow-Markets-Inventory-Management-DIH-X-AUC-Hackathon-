@@ -298,8 +298,14 @@ class MLPredictionService:
         if forecast['status'] != 'success' and forecast['status'] != 'model_not_available':
             return forecast
         
-        # Calculate needed stock
-        total_demand = forecast.get('summary', {}).get('total_predicted_demand', 0)
+        # Calculate needed stock - handle both cases (with and without summary)
+        if 'summary' in forecast and 'total_predicted_demand' in forecast['summary']:
+            total_demand = forecast['summary']['total_predicted_demand']
+        else:
+            # Calculate from predictions array if summary not available
+            predictions = forecast.get('predictions', [])
+            total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
+        
         needed_stock = total_demand * safety_stock_multiplier
         reorder_qty = max(0, needed_stock - current_stock)
         
