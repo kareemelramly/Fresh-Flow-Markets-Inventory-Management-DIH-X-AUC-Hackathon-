@@ -29,7 +29,7 @@ def get_inventory_items():
         params = []
         
         if search:
-            where_clauses.append("(title LIKE ? OR barcode LIKE ?)")
+            where_clauses.append("(title LIKE ? OR number LIKE ?)")
             params.extend([f'%{search}%', f'%{search}%'])
         
         if place_id:
@@ -46,9 +46,9 @@ def get_inventory_items():
         offset = (page - 1) * per_page
         query = f"""
             SELECT 
-                id, title, accounting_reference, barcode,
-                price, tax_id, stock_unit, minimum_stock,
-                has_variants, display_for_customers, delivery,
+                id, title, accounting_reference, number AS barcode,
+                price, vat, status,
+                display_for_customers, delivery,
                 eat_in, takeaway, created, updated
             FROM dim_items
             WHERE {where_sql}
