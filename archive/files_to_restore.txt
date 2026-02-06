@@ -1,5 +1,0 @@
-dim_add_ons.csv
-dim_places.csv
-fct_orders.csv
-fct_cash_balances.csv
-fct_invoice_items.csv

@@ -65,3 +65,51 @@ htmlcov/
 # Environment variables
 .env
 .env.local
+# Test scripts and files
+check_items.py
+check_model_features.py
+check_orders.py
+check_top_items.py
+final_status.py
+quick_api_test.py
+quick_test.py
+quick_verify.py
+test_api.ps1
+test_api.py
+test_api_comprehensive.py
+test_campaign_debug.py
+test_dashboard.py
+test_forecasting.py
+test_forecast_scenarios.py
+test_infrastructure.py
+test_integration.py
+test_inventory.py
+test_ml_service.py
+test_model_loading.py
+test_quick.py
+test_website_api.py
+test_bulk.json
+test_category_mapping.json
+test_reorder.json
+test_request.json
+
+# Temporary documentation files
+API_WEBSITE_INTEGRATION_COMPLETE.md
+INFRASTRUCTURE_READY.md
+ORGANIZATION_SUMMARY.md
+REORGANIZATION_COMPLETE.md
+REVENUE_PREDICTOR_FIX_SUMMARY.md
+WEBSITE_INTEGRATION_COMPLETE.md
+FORECASTING_SYSTEM_EXPLAINED.md
+ML_MODELS_ANALYSIS.md
+
+# Temporary files
+output.txt
+style.css
+
+# Archive and backup folders
+archive/
+tests/
+data/Backup Before Restoration/
+data/Old data/
+data/Uncleaned Inventory Management data/
