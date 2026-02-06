@@ -108,14 +108,15 @@ def predict_item_demand():
         # Use item price if not provided
         price = data.get('price', item.get('price'))
         
-        # Predict demand
+        # Predict demand (pass item name for category mapping)
         forecast = ml_service.predict_demand(
             item_id=data['item_id'],
             forecast_days=data.get('forecast_days', 7),
             is_holiday=data.get('is_holiday', False),
             is_weekend=data.get('is_weekend', False),
             campaign_active=data.get('campaign_active', False),
-            price=price
+            price=price,
+            item_name=item.get('title')  # Add item name for model matching
         )
         
         # Add item details to response
@@ -199,9 +200,19 @@ def bulk_forecast_demand():
         forecasts = []
         for item_id in data['item_ids']:
             try:
+                # Get item details for category mapping
+                item = query_db(
+                    "SELECT id, title FROM dim_items WHERE id = ?",
+                    [item_id],
+                    one=True
+                )
+                
+                item_name = item.get('title') if item else None
+                
                 forecast = ml_service.predict_demand(
                     item_id=item_id,
-                    forecast_days=data.get('forecast_days', 7)
+                    forecast_days=data.get('forecast_days', 7),
+                    item_name=item_name
                 )
                 forecasts.append(forecast)
             except Exception as e:
