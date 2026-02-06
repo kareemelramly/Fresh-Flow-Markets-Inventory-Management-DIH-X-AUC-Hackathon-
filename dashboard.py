@@ -28,45 +28,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- NEW TOP NAVIGATION ---
-# --- TOP NAVIGATION ADJUSTMENT ---
-
-st.markdown(
-    """
-    <style>
-        /* Adjust page top padding */
-        .block-container {
-            padding-top: 3.5rem; 
-        }
-        
-        /* Style buttons to look like clickable text labels */
-        div.stButton > button {
-            border: none;
-            background-color: transparent;
-            color: #FAFAFA; /* Matches default light text, adjust if needed */
-            padding: 0;
-            font-size: 16px;
-            font-weight: 400;
-        }
-        
-        /* Remove hover border/background */
-        div.stButton > button:hover {
-            color: #FF4B4B; /* Changes color on hover */
-            background-color: transparent;
-            border: none;
-        }
-
-        /* Active state/focus styling */
-        div.stButton > button:focus {
-            color: #FF4B4B;
-            background-color: transparent;
-            box-shadow: none;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
+with open("style.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 # Initialize session state for page routing if it doesn't exist
 if 'page' not in st.session_state:
     st.session_state.page = "Main Statistics"
@@ -248,7 +211,7 @@ def show_inventory():
             st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
         
         df = pd.DataFrame(items)
-        tab1, tab2, tab3 = st.tabs(["📋 All Items", "📊 Item Details", "🔍 Quick Search"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📋 All Items", "📊 Item Details", "🔍 Quick Search", "🚨 Low Stock"])
         
         with tab1:
             st.subheader("All Inventory Items")
@@ -292,6 +255,17 @@ def show_inventory():
             st.subheader("Quick Search")
             st.markdown("Use the search box in the sidebar to filter items by name or barcode")
             st.info("💡 Tip: Try searching for 'Sodavand', 'Øl', or any item name")
+        with tab4:
+            st.subheader("🚨 Low Stock Alerts")
+            low_stock_response = fetch_data('/api/inventory/low-stock')
+            
+            if low_stock_response and low_stock_response.get('data'):
+                ls_df = pd.DataFrame(low_stock_response['data'])
+                # Only show the ID and Name (Title) as requested
+                cols = [c for c in ['id', 'title', 'current_stock'] if c in ls_df.columns]
+                st.dataframe(ls_df[cols], use_container_width=True, hide_index=True)
+            else:
+                st.info("No low stock items found.")
     else:
         st.warning("⚠️ No inventory data available. Please check API connection.")
     
