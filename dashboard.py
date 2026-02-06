@@ -297,8 +297,12 @@ def show_forecasting():
         st.warning("⚠️ ML Service may not be fully operational")
     
     st.markdown("---")
-    tab1, tab2, tab3 = st.tabs(["📈 Demand Forecast", "📦 Reorder Recommendations", "🔄 Bulk Forecast"])
-    
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📈 Demand Forecast", 
+        "📦 Reorder Recommendations", 
+        "🔄 Bulk Forecast",
+        "👥 Customer Churn"
+    ])
     with tab1:
         st.subheader("Predict Item Demand")
         col1, col2 = st.columns([2, 1])
@@ -443,7 +447,132 @@ def show_forecasting():
                                 })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
+    with tab4:
+        st.subheader("Customer Churn and Loyalty Prediction")
+        st.info("Predict individual customer churn risk and get retention recommendations.")
 
+        # Single Customer Lookup Section
+        with st.expander("🔍 Analyze Single Customer", expanded=True):
+            with st.form("churn_form"):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    cust_id = st.number_input("Customer ID", min_value=1, value=123)
+                    waiting_time = st.number_input("Avg Waiting Time (min)", value=25.5)
+                with col2:
+                    rating = st.slider("Recent Rating (1-5)", 1.0, 5.0, 3.5)
+                    points = st.number_input("Points Redeemed", value=500)
+                with col3:
+                    vip_thresh = st.number_input("VIP Threshold", value=1000)
+                    last_order = st.number_input("Days Since Last Order", value=15)
+                
+                submit = st.form_submit_button("🔮 Predict Churn Risk", type="primary")
+
+            if submit:
+                with st.spinner("Analyzing customer behavior..."):
+                    try:
+                        payload = {
+                            "customer_id": cust_id,
+                            "recent_waiting_time": waiting_time,
+                            "recent_rating": rating,
+                            "points_redeemed": points,
+                            "vip_threshold": vip_thresh,
+                            "days_since_last_order": last_order
+                        }
+                        
+                        # API Call to the correct endpoint
+                        response = requests.post(f"{API_BASE}/api/ml/customers/churn-risk", json=payload, timeout=30)
+                        
+                        if response.status_code == 200:
+                            res = response.json()
+                            if res.get('success'):
+                                # Safely extract nested data
+                                data = res.get('data', {})
+                                risk = data.get('churn_risk', {})
+                                strat = data.get('retention_strategy', {})
+                                insights = data.get('customer_insights', {})
+
+                                # 1. Top Metrics Row
+                                st.success("Analysis Complete!")
+                                m1, m2, m3 = st.columns(3)
+                                prob = risk.get('probability', 0)
+                                m1.metric("Churn Probability", f"{prob}%")
+                                m2.metric("Risk Level", risk.get('level', 'N/A').upper())
+                                m3.metric("Status", "VIP" if insights.get('is_vip') else "Standard")
+
+                                # 2. Visual Risk Severity Bar
+                                st.write(f"**Risk Severity Assessment:** {risk.get('level', 'Unknown').title()}")
+                                st.progress(prob / 100)
+                                
+                                # 3. Details: Insights vs Strategy
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    st.markdown("#### 💡 Insights")
+                                    st.write(f"- **Engagement:** {insights.get('engagement_level', 'N/A').title()}")
+                                    st.write(f"- **Satisfaction:** {insights.get('satisfaction_score', 0)*100:.0f}%")
+                                
+                                with col_b:
+                                    st.markdown("#### 🎯 Strategy")
+                                    st.write(f"- **Urgency:** {strat.get('urgency', 'N/A').upper()}")
+                                    for action in strat.get('recommended_actions', []):
+                                        st.write(f"- {action}")
+                            else:
+                                st.error(f"API Error: {res.get('message', 'The server returned success=False')}")
+                        else:
+                            st.error(f"Server Error: {response.status_code} - Check if backend is running.")
+                    except Exception as e:
+                        st.error(f"UI Transformation Failed: {str(e)}")
+
+        st.markdown("---")
+
+        # Batch Risk Section
+        # Batch Risk Section
+        st.subheader("📋 Batch Churn Risk Analysis")
+        if st.button("Identify High-Risk Customers"):
+            with st.spinner("Scanning customer base..."):
+                try:
+            
+                    # using the current values of the input widgets above
+                    current_batch_payload = {
+                        "customers": [{
+                            "customer_id": cust_id,
+                            "recent_waiting_time": waiting_time,
+                            "recent_rating": rating,
+                            "points_redeemed": points,
+                            "vip_threshold": vip_thresh,
+                            "days_since_last_order": last_order
+                        }]
+                    }
+                    
+                    #
+                    response = requests.post(
+                        f"{API_BASE}/api/ml/customers/batch-churn-risk", 
+                        json=current_batch_payload, 
+                        timeout=30
+                    )
+                    
+                    if response.status_code == 200:
+                        batch_res = response.json()
+                        if batch_res.get('success'):
+                            c1, c2 = st.columns(2)
+                            c1.metric("Total Customers Scanned", batch_res.get('total_customers', 0))
+                            c2.metric("High Risk Count", batch_res.get('high_risk_count', 0), delta_color="inverse")
+                            
+                            if 'high_risk_customers' in batch_res:
+                                table_data = []
+                                for c in batch_res['high_risk_customers']:
+                                    c_risk = c.get('churn_risk', {})
+                                    table_data.append({
+                                        "Customer ID": c.get('customer_id'),
+                                        "Probability (%)": c_risk.get('probability'),
+                                        "Risk Level": c_risk.get('level', 'N/A').upper()
+                                    })
+                                st.dataframe(pd.DataFrame(table_data), use_container_width=True, hide_index=True)
+                        else:
+                            st.error(f"Batch analysis failed: {batch_res.get('message', 'Unknown server error')}")
+                    else:
+                        st.error(f"Server Error {response.status_code}: Path may be incorrect.")
+                except Exception as e:
+                    st.error(f"Batch prediction failed: {str(e)}")
 # Page routing
 if page == "Main Statistics":
     show_dashboard()
