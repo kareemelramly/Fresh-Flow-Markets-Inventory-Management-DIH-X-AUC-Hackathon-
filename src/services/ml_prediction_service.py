@@ -244,44 +244,53 @@ class MLPredictionService:
                 'message': f'Demand forecasting model not available for item: {item_name or item_id}',
                 'item_id': item_id,
                 'forecast_days': forecast_days,
-                'predictions': self._generate_fallback_forecast(forecast_days),
+                'predictions': self._generate_fallback_forecast(forecast_days, is_holiday, campaign_active),
                 'note': 'Using historical average fallback'
             }
         
         # Prepare future dates
         predictions = []
-        for day_offset in range(forecast_days):
-            pred_date = datetime.now() + timedelta(days=day_offset + 1)
-            
-            # Create features for this day
-            features = pd.DataFrame([{
-                'day_of_week': pred_date.weekday(),
-                'month': pred_date.month,
-                'day': pred_date.day,
-                'is_weekend': int(pred_date.weekday() >= 5),
-                'is_holiday': int(is_holiday),
-                'campaign_active': int(campaign_active)
-            }])
-            
-            # Scale if scaler available
-            if model_artifacts.get('scaler'):
-                features_scaled = model_artifacts['scaler'].transform(features)
-            else:
-                features_scaled = features.values
-            
-            # Predict
-            try:
+        try:
+            for day_offset in range(forecast_days):
+                pred_date = datetime.now() + timedelta(days=day_offset + 1)
+                
+                # Create features for this day
+                features = pd.DataFrame([{
+                    'day_of_week': pred_date.weekday(),
+                    'month': pred_date.month,
+                    'day': pred_date.day,
+                    'is_weekend': int(pred_date.weekday() >= 5),
+                    'is_holiday': int(is_holiday),
+                    'campaign_active': int(campaign_active)
+                }])
+                
+                # Scale if scaler available
+                if model_artifacts.get('scaler'):
+                    features_scaled = model_artifacts['scaler'].transform(features)
+                else:
+                    features_scaled = features.values
+                
+                # Predict
                 quantity = model_artifacts['model'].predict(features_scaled)[0]
-            except Exception as e:
-                print(f"Prediction error: {e}")
-                quantity = 10.0  # Fallback value
-            
-            predictions.append({
-                'date': pred_date.strftime('%Y-%m-%d'),
-                'predicted_quantity': max(0, round(float(quantity), 2)),
-                'day_of_week': pred_date.strftime('%A'),
-                'is_weekend': pred_date.weekday() >= 5
-            })
+                
+                predictions.append({
+                    'date': pred_date.strftime('%Y-%m-%d'),
+                    'predicted_quantity': max(0, round(float(quantity), 2)),
+                    'day_of_week': pred_date.strftime('%A'),
+                    'is_weekend': pred_date.weekday() >= 5
+                })
+        
+        except Exception as e:
+            # Feature mismatch or other prediction error - fall back to simple forecast
+            print(f"Model prediction failed ({type(e).__name__}: {e}), using fallback forecast")
+            return {
+                'status': 'model_incompatible',
+                'message': f'Model loaded but incompatible with current features. Using fallback estimate.',
+                'item_id': item_id,
+                'forecast_days': forecast_days,
+                'predictions': self._generate_fallback_forecast(forecast_days, is_holiday, campaign_active),
+                'note': f'Model error: {type(e).__name__}'
+            }
         
         total_predicted = sum(p['predicted_quantity'] for p in predictions)
         
@@ -297,19 +306,37 @@ class MLPredictionService:
             }
         }
     
-    def _generate_fallback_forecast(self, forecast_days: int) -> List[Dict[str, Any]]:
-        """Generate simple fallback forecast based on average"""
+    def _generate_fallback_forecast(
+        self, 
+        forecast_days: int,
+        is_holiday: bool = False,
+        campaign_active: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Generate simple fallback forecast based on average with dynamic multipliers"""
         predictions = []
-        avg_daily = 15.0  # Simple fallback average
+        base_daily = 15.0  # Base fallback average
         
         for day_offset in range(forecast_days):
             pred_date = datetime.now() + timedelta(days=day_offset + 1)
+            
+            # Start with base
+            multiplier = 1.0
+            
             # Higher demand on weekends
-            multiplier = 1.5 if pred_date.weekday() >= 5 else 1.0
+            if pred_date.weekday() >= 5:
+                multiplier *= 1.5
+            
+            # Holiday boost (30% increase)
+            if is_holiday:
+                multiplier *= 1.3
+            
+            # Campaign boost (40% increase)
+            if campaign_active:
+                multiplier *= 1.4
             
             predictions.append({
                 'date': pred_date.strftime('%Y-%m-%d'),
-                'predicted_quantity': round(avg_daily * multiplier, 2),
+                'predicted_quantity': round(base_daily * multiplier, 2),
                 'day_of_week': pred_date.strftime('%A'),
                 'is_weekend': pred_date.weekday() >= 5
             })
