@@ -1,0 +1,18 @@
+{
+  "model_type": "XGBRegressor",
+  "features": [
+    "is_weekend",
+    "is_holiday",
+    "lagged_revenue"
+  ],
+  "test_r2": -0.3623831479771411,
+  "test_rmse": 355043.0690245241,
+  "test_mae": 184852.3152529297,
+  "test_mape": 67.56131965386952,
+  "training_date": "2026-02-06T13:44:42.525129",
+  "feature_importance": {
+    "is_weekend": 0.1679694801568985,
+    "is_holiday": 0.0,
+    "lagged_revenue": 0.8320304751396179
+  }
+}
