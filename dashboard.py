@@ -297,7 +297,8 @@ def show_forecasting():
         st.warning("⚠️ ML Service may not be fully operational")
     
     st.markdown("---")
-    tab1, tab2, tab3 = st.tabs(["📈 Demand Forecast", "📦 Reorder Recommendations", "🔄 Bulk Forecast"])
+    # UPDATED: Added tab4 for Campaign ROI
+    tab1, tab2, tab3, tab4 = st.tabs(["📈 Demand Forecast", "📦 Reorder Recommendations", "🔄 Bulk Forecast", "💰 Campaign ROI Predictor"])
     
     with tab1:
         st.subheader("Predict Item Demand")
@@ -333,13 +334,11 @@ def show_forecasting():
                                 st.success(f"**Forecast for:** {item_info.get('name', 'Unknown Item')}")
                                 st.metric("Current Price", f"${item_info.get('current_price', 0):.2f}")
                             
-                            # Show forecast status message if available
                             if 'message' in forecast_data:
                                 st.info(f"ℹ️ {forecast_data['message']}")
                             
                             st.subheader("Forecast Results")
                             
-                            # Calculate total demand from predictions array
                             if 'predictions' in forecast_data:
                                 daily_df = pd.DataFrame(forecast_data['predictions'])
                                 total_demand = daily_df['predicted_quantity'].sum()
@@ -384,14 +383,12 @@ def show_forecasting():
                             reorder_data = result['data']
                             recommendations = reorder_data.get('recommendations', {})
                             
-                            # Display key metrics
                             cols = st.columns(4)
                             with cols[0]: st.metric("Reorder Quantity", f"{recommendations.get('reorder_quantity', 0):.0f}")
                             with cols[1]: st.metric("Safety Stock", f"{recommendations.get('safety_stock_level', 0):.0f}")
                             with cols[2]: st.metric("Predicted Demand", f"{reorder_data.get('predicted_demand', 0):.0f}")
                             with cols[3]: st.metric("Urgency", recommendations.get('urgency', 'N/A').upper())
                             
-                            # Additional info
                             if recommendations.get('reorder_needed'):
                                 st.warning(f"⚠️ Reorder needed! Stockout expected: {recommendations.get('days_until_stockout', 'N/A')}")
                             else:
@@ -413,13 +410,10 @@ def show_forecasting():
                         forecasts = result.get('forecasts', [])
                         summary_data = []
                         for f in forecasts:
-                            # Calculate total demand from predictions array
                             predictions = f.get('predictions', [])
                             if predictions:
                                 total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
                                 avg_daily = total_demand / len(predictions) if predictions else 0
-                                
-                                # Make status more user-friendly
                                 status = f.get('status', 'N/A')
                                 if status == 'model_not_available':
                                     status_display = '⚠️ Fallback Estimate'
@@ -443,6 +437,54 @@ def show_forecasting():
                                 })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
+
+    #  TAB 4 FOR CAMPAIGN ROI ---
+    with tab4:
+        st.subheader("🎯 Campaign Success & ROI Predictor")
+        st.markdown("Predict campaign performance before launch based on historical data.")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            # Inputs matching Campaign ROI Predictor requirements
+            duration = st.number_input("Campaign Duration (Days)", min_value=1, value=7)
+            points = st.number_input("Loyalty Points Awarded", min_value=0, value=200)
+        with c2:
+            discount = st.slider("Discount Percentage (%)", 0, 100, 20)
+            min_spend = st.number_input("Minimum Spend Requirement ($)", min_value=0, value=75)
+            
+        if st.button("🚀 Predict ROI", type="primary"):
+            with st.spinner("Analyzing campaign variables..."):
+                try:
+                    # Payload structure follows README.md quick start
+                    roi_payload = {
+                        "duration_days": duration,
+                        "points": points,
+                        "discount": discount,
+                        "minimum_spend": min_spend
+                    }
+                    response = requests.post(f"{API_BASE}/api/ml/predict/campaigns", json=roi_payload, timeout=30)
+                    
+                    if response.status_code == 200:
+                        res = response.json()
+                        if res.get('success'):
+                            data = res['data']
+                            
+                            # Reporting metrics as defined in ML_Models README
+                            m_col1, m_col2 = st.columns(2)
+                            with m_col1:
+                                st.metric("Predicted Redemptions", f"{data.get('predicted_redemptions', 0)}")
+                            with m_col2:
+                                prob = data.get('success_probability_pct', 0)
+                                st.metric("Success Probability", f"{prob}%")
+                                
+                            if prob > 80:
+                                st.success("High probability of campaign success!")
+                            else:
+                                st.warning("Consider adjusting discount or minimum spend to improve ROI.")
+                        else:
+                            st.error(f"Prediction Error: {res.get('error')}")
+                except Exception as e:
+                    st.error(f"Could not connect to ROI model: {str(e)}")
 
 # Page routing
 if page == "Main Statistics":
