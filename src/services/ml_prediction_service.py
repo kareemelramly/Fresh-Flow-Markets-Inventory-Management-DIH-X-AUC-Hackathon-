@@ -51,6 +51,18 @@ class MLPredictionService:
         }
         # Cache for item-specific forecast models
         self.item_forecast_models = {}
+        
+        # Category mapping for items without specific models
+        self.category_keywords = {
+            'Sodavand': ['cola', 'sodavand', 'naturfrisk', 'lemonade', 'fanta', 'sprite', 'pepsi', 'soda'],
+            'Vand': ['water', 'vand', 'kildevand', 'still water', 'sparkling'],
+            'Øl': ['øl', 'beer', 'fadøl', 'pilsner', 'ipa', 'lager', 'ale'],
+            'Cappuccino': ['cappuccino', 'latte', 'americano', 'kaffe', 'espresso', 'coffee', 'flat white'],
+            'Lille_box': ['lille box', 'small box', 'lille'],
+            'Mellem_box': ['mellem box', 'medium box', 'mellem', 'stor box', 'large box'],
+            'Ristet_Hotdog': ['hotdog', 'ristet', 'fransk', 'pølse'],
+            'Øl_Vand_Spiritus': ['spiritus', 'vodka', 'gin', 'rum'],
+        }
     
     def _load_model_artifacts(self, model_type: str) -> Dict[str, Any]:
         """Load model artifacts from disk"""
@@ -129,6 +141,29 @@ class MLPredictionService:
     # 1. DEMAND & STOCK FORECASTER
     # ========================================================================
     
+    def _map_item_to_category(self, item_name: str) -> Optional[str]:
+        """
+        Map an item name to a trained category model using keyword matching
+        
+        Args:
+            item_name: The item's name/title
+            
+        Returns:
+            Category name if found, None otherwise
+        """
+        if not item_name:
+            return None
+            
+        item_lower = item_name.lower()
+        
+        # Check each category's keywords
+        for category, keywords in self.category_keywords.items():
+            for keyword in keywords:
+                if keyword.lower() in item_lower:
+                    return category
+        
+        return None
+    
     def _load_item_forecast_model(self, item_name: str) -> Optional[Dict[str, Any]]:
         """Load item-specific forecast model and scaler"""
         cache_key = item_name
@@ -140,15 +175,26 @@ class MLPredictionService:
         if not base_path:
             return None
         
-        # Try to load model and scaler for this item
+        # First try exact match
         model_file = f"{item_name}.joblib"
         scaler_file = f"{item_name}_scaler.joblib"
         
         model_path = os.path.join(self.models_dir, base_path, config.get('models_subdir', ''), model_file)
         scaler_path = os.path.join(self.models_dir, base_path, config.get('scalers_subdir', ''), scaler_file)
         
+        # If exact match not found, try category mapping
         if not os.path.exists(model_path):
-            return None
+            category = self._map_item_to_category(item_name)
+            if category:
+                model_file = f"{category}.joblib"
+                scaler_file = f"{category}_scaler.joblib"
+                model_path = os.path.join(self.models_dir, base_path, config.get('models_subdir', ''), model_file)
+                scaler_path = os.path.join(self.models_dir, base_path, config.get('scalers_subdir', ''), scaler_file)
+                
+                if not os.path.exists(model_path):
+                    return None
+            else:
+                return None
         
         try:
             artifacts = {
@@ -198,44 +244,53 @@ class MLPredictionService:
                 'message': f'Demand forecasting model not available for item: {item_name or item_id}',
                 'item_id': item_id,
                 'forecast_days': forecast_days,
-                'predictions': self._generate_fallback_forecast(forecast_days),
+                'predictions': self._generate_fallback_forecast(forecast_days, is_holiday, campaign_active),
                 'note': 'Using historical average fallback'
             }
         
         # Prepare future dates
         predictions = []
-        for day_offset in range(forecast_days):
-            pred_date = datetime.now() + timedelta(days=day_offset + 1)
-            
-            # Create features for this day
-            features = pd.DataFrame([{
-                'day_of_week': pred_date.weekday(),
-                'month': pred_date.month,
-                'day': pred_date.day,
-                'is_weekend': int(pred_date.weekday() >= 5),
-                'is_holiday': int(is_holiday),
-                'campaign_active': int(campaign_active)
-            }])
-            
-            # Scale if scaler available
-            if model_artifacts.get('scaler'):
-                features_scaled = model_artifacts['scaler'].transform(features)
-            else:
-                features_scaled = features.values
-            
-            # Predict
-            try:
+        try:
+            for day_offset in range(forecast_days):
+                pred_date = datetime.now() + timedelta(days=day_offset + 1)
+                
+                # Create features for this day
+                features = pd.DataFrame([{
+                    'day_of_week': pred_date.weekday(),
+                    'month': pred_date.month,
+                    'day': pred_date.day,
+                    'is_weekend': int(pred_date.weekday() >= 5),
+                    'is_holiday': int(is_holiday),
+                    'campaign_active': int(campaign_active)
+                }])
+                
+                # Scale if scaler available
+                if model_artifacts.get('scaler'):
+                    features_scaled = model_artifacts['scaler'].transform(features)
+                else:
+                    features_scaled = features.values
+                
+                # Predict
                 quantity = model_artifacts['model'].predict(features_scaled)[0]
-            except Exception as e:
-                print(f"Prediction error: {e}")
-                quantity = 10.0  # Fallback value
-            
-            predictions.append({
-                'date': pred_date.strftime('%Y-%m-%d'),
-                'predicted_quantity': max(0, round(float(quantity), 2)),
-                'day_of_week': pred_date.strftime('%A'),
-                'is_weekend': pred_date.weekday() >= 5
-            })
+                
+                predictions.append({
+                    'date': pred_date.strftime('%Y-%m-%d'),
+                    'predicted_quantity': max(0, round(float(quantity), 2)),
+                    'day_of_week': pred_date.strftime('%A'),
+                    'is_weekend': pred_date.weekday() >= 5
+                })
+        
+        except Exception as e:
+            # Feature mismatch or other prediction error - fall back to simple forecast
+            print(f"Model prediction failed ({type(e).__name__}: {e}), using fallback forecast")
+            return {
+                'status': 'model_incompatible',
+                'message': f'Model loaded but incompatible with current features. Using fallback estimate.',
+                'item_id': item_id,
+                'forecast_days': forecast_days,
+                'predictions': self._generate_fallback_forecast(forecast_days, is_holiday, campaign_active),
+                'note': f'Model error: {type(e).__name__}'
+            }
         
         total_predicted = sum(p['predicted_quantity'] for p in predictions)
         
@@ -251,19 +306,37 @@ class MLPredictionService:
             }
         }
     
-    def _generate_fallback_forecast(self, forecast_days: int) -> List[Dict[str, Any]]:
-        """Generate simple fallback forecast based on average"""
+    def _generate_fallback_forecast(
+        self, 
+        forecast_days: int,
+        is_holiday: bool = False,
+        campaign_active: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Generate simple fallback forecast based on average with dynamic multipliers"""
         predictions = []
-        avg_daily = 15.0  # Simple fallback average
+        base_daily = 15.0  # Base fallback average
         
         for day_offset in range(forecast_days):
             pred_date = datetime.now() + timedelta(days=day_offset + 1)
+            
+            # Start with base
+            multiplier = 1.0
+            
             # Higher demand on weekends
-            multiplier = 1.5 if pred_date.weekday() >= 5 else 1.0
+            if pred_date.weekday() >= 5:
+                multiplier *= 1.5
+            
+            # Holiday boost (30% increase)
+            if is_holiday:
+                multiplier *= 1.3
+            
+            # Campaign boost (40% increase)
+            if campaign_active:
+                multiplier *= 1.4
             
             predictions.append({
                 'date': pred_date.strftime('%Y-%m-%d'),
-                'predicted_quantity': round(avg_daily * multiplier, 2),
+                'predicted_quantity': round(base_daily * multiplier, 2),
                 'day_of_week': pred_date.strftime('%A'),
                 'is_weekend': pred_date.weekday() >= 5
             })
@@ -298,8 +371,14 @@ class MLPredictionService:
         if forecast['status'] != 'success' and forecast['status'] != 'model_not_available':
             return forecast
         
-        # Calculate needed stock
-        total_demand = forecast.get('summary', {}).get('total_predicted_demand', 0)
+        # Calculate needed stock - handle both cases (with and without summary)
+        if 'summary' in forecast and 'total_predicted_demand' in forecast['summary']:
+            total_demand = forecast['summary']['total_predicted_demand']
+        else:
+            # Calculate from predictions array if summary not available
+            predictions = forecast.get('predictions', [])
+            total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
+        
         needed_stock = total_demand * safety_stock_multiplier
         reorder_qty = max(0, needed_stock - current_stock)
         

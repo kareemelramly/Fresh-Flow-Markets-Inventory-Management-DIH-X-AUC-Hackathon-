@@ -96,17 +96,24 @@ def get_item(item_id):
 
 @api_bp.route('/inventory/low-stock', methods=['GET'])
 def get_low_stock_items():
-    """Get items with low stock levels"""
+    """Get items with low stock levels based on order volume"""
     try:
+        # Get items with low recent order activity (potential low stock indicators)
         query = """
             SELECT 
-                id, title, barcode, current_stock,
-                minimum_stock, stock_unit, place_id
-            FROM dim_items
-            WHERE minimum_stock IS NOT NULL
-                AND current_stock IS NOT NULL
-                AND current_stock <= minimum_stock
-            ORDER BY (current_stock / NULLIF(minimum_stock, 0)) ASC
+                i.id, 
+                i.title, 
+                i.number as barcode,
+                i.price,
+                i.status,
+                COUNT(DISTINCT oi.order_id) as recent_orders,
+                SUM(oi.quantity) as total_quantity_sold
+            FROM dim_items i
+            LEFT JOIN fct_order_items oi ON i.id = oi.item_id
+            WHERE i.status = 'Active'
+            GROUP BY i.id, i.title, i.number, i.price, i.status
+            HAVING recent_orders < 10 OR recent_orders IS NULL
+            ORDER BY recent_orders ASC, total_quantity_sold ASC
             LIMIT 100
         """
         items = query_db(query)

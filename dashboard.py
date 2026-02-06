@@ -207,18 +207,12 @@ def show_inventory():
         items = data['data']
         pagination = data.get('pagination', {})
         
-<<<<<<< HEAD
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
             st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
         
         df = pd.DataFrame(items)
         tab1, tab2, tab3, tab4 = st.tabs(["📋 All Items", "📊 Item Details", "🔍 Quick Search", "🚨 Low Stock"])
-=======
-       
-        df = pd.DataFrame(items)
-        tab1, tab2, tab3 = st.tabs(["📋 All Items", "📊 Item Details", "🚨 Low Stock"])
->>>>>>> 0a0412b8a84b7af4b190db936d0c735f1a4381a6
         
         with tab1:
             st.subheader("All Inventory Items")
@@ -258,26 +252,18 @@ def show_inventory():
                     st.write(f"**Eat In:** {'Yes' if item.get('eat_in') else 'No'}")
                     st.write(f"**Takeaway:** {'Yes' if item.get('takeaway') else 'No'}")
         
-<<<<<<< HEAD
         with tab3:
             st.subheader("Quick Search")
             st.markdown("Use the search box in the sidebar to filter items by name or barcode")
             st.info("💡 Tip: Try searching for 'Sodavand', 'Øl', or any item name")
+        
         with tab4:
-=======
-    
-        with tab3:
->>>>>>> 0a0412b8a84b7af4b190db936d0c735f1a4381a6
             st.subheader("🚨 Low Stock Alerts")
             low_stock_response = fetch_data('/api/inventory/low-stock')
             
             if low_stock_response and low_stock_response.get('data'):
                 ls_df = pd.DataFrame(low_stock_response['data'])
-<<<<<<< HEAD
                 # Only show the ID and Name (Title) as requested
-=======
-                # Only show the ID and Name (Title) 
->>>>>>> 0a0412b8a84b7af4b190db936d0c735f1a4381a6
                 cols = [c for c in ['id', 'title', 'current_stock'] if c in ls_df.columns]
                 st.dataframe(ls_df[cols], width="stretch", hide_index=True)
             else:
@@ -394,12 +380,20 @@ def show_forecasting():
                         result = response.json()
                         if result.get('success'):
                             reorder_data = result['data']
+                            recommendations = reorder_data.get('recommendations', {})
+                            
+                            # Display key metrics
                             cols = st.columns(4)
-                            with cols[0]: st.metric("Reorder Quantity", f"{reorder_data.get('reorder_quantity', 0):.0f}")
-                            with cols[1]: st.metric("Reorder Point", f"{reorder_data.get('reorder_point', 0):.0f}")
-                            with cols[2]: st.metric("Safety Stock", f"{reorder_data.get('safety_stock', 0):.0f}")
-                            with cols[3]: st.metric("Days Until Reorder", f"{reorder_data.get('days_until_reorder', 0):.0f}")
-                            if 'recommendation' in reorder_data: st.info(f"💡 {reorder_data['recommendation']}")
+                            with cols[0]: st.metric("Reorder Quantity", f"{recommendations.get('reorder_quantity', 0):.0f}")
+                            with cols[1]: st.metric("Safety Stock", f"{recommendations.get('safety_stock_level', 0):.0f}")
+                            with cols[2]: st.metric("Predicted Demand", f"{reorder_data.get('predicted_demand', 0):.0f}")
+                            with cols[3]: st.metric("Urgency", recommendations.get('urgency', 'N/A').upper())
+                            
+                            # Additional info
+                            if recommendations.get('reorder_needed'):
+                                st.warning(f"⚠️ Reorder needed! Stockout expected: {recommendations.get('days_until_stockout', 'N/A')}")
+                            else:
+                                st.success("✅ Stock levels adequate")
                         else: st.error(f"Error: {result.get('error', 'Unknown error')}")
                 except Exception as e: st.error(f"Failed: {str(e)}")
 
@@ -415,7 +409,36 @@ def show_forecasting():
                     result = response.json()
                     if result.get('success'):
                         forecasts = result.get('forecasts', [])
-                        summary_data = [{'Item ID': f.get('item_id'), 'Predicted Demand': f"{f.get('predicted_demand', 0):.1f}", 'Confidence': f"{f.get('confidence', 0):.0%}", 'Recommendation': f.get('recommendation', 'N/A')} for f in forecasts]
+                        summary_data = []
+                        for f in forecasts:
+                            # Calculate total demand from predictions array
+                            predictions = f.get('predictions', [])
+                            if predictions:
+                                total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
+                                avg_daily = total_demand / len(predictions) if predictions else 0
+                                
+                                # Make status more user-friendly
+                                status = f.get('status', 'N/A')
+                                if status == 'model_not_available':
+                                    status_display = '⚠️ Fallback Estimate'
+                                elif status == 'success':
+                                    status_display = '✅ ML Prediction'
+                                else:
+                                    status_display = status
+                                
+                                summary_data.append({
+                                    'Item ID': f.get('item_id'),
+                                    'Total Demand': f"{total_demand:.1f}",
+                                    'Avg Daily': f"{avg_daily:.1f}",
+                                    'Status': status_display
+                                })
+                            else:
+                                summary_data.append({
+                                    'Item ID': f.get('item_id'),
+                                    'Total Demand': '0.0',
+                                    'Avg Daily': '0.0',
+                                    'Status': '❌ No Data'
+                                })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
 
