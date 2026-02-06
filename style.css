@@ -1,0 +1,78 @@
+/* 1. Global Background (Off-White) */
+.stApp {
+    background-color: #FAF9F6 !important;
+}
+
+/* 2. Top Header Bar (Green) */
+[data-testid="stHeader"] {
+    background-color: #1E5631 !important;
+}
+
+/* 3. Navigation Row Container styling */
+[data-testid="column"] {
+    background /* Align the logo to the right and center it vertically in the nav bar */
+    [data-testid="column"]:last-child
+
+{
+    display: flex;
+    justify-content: flex-end; /* Pushes logo to the far right */
+    align-items: center; /* Centers it vertically with the buttons */
+    padding-right: 20px; /* Gives it some breathing room from the edge */
+}
+
+/* Ensure the image doesn't have a border */
+[data-testid="stImage"] img {
+    border: none !important;
+}-color: #1E5631;
+    padding: 10px;
+}
+
+/* 4. Navigation Buttons (Off-White text) */
+div.stButton > button {
+    border: none !important;
+    background-color: transparent !important;
+    color: #FAF9F6 !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+}
+
+/* 5. ALL HORIZONTAL BARS (Dividers) - Orange */
+hr {
+    border: none !important;
+    height: 4px !important;
+    background-color: #FF8C00 !important;
+    opacity: 1 !important;
+}
+
+/* 6. Text Styling (Green hierarchy) */
+h1, h2 {
+    color: #064420 !important; /* Deepest Green */
+}
+
+h3, p, span, label, .stMetric {
+    color: #2E8B57 !important; /* Medium Green */
+}
+
+.stCaption {
+    color: #8A9A5B !important; /* Lightest Olive Green */
+}
+
+/* Metric values specifically */
+[data-testid="stMetricValue"] {
+    color: #064420 !important;
+}
+/* --- SIDEBAR STYLING --- */
+[data-testid="stSidebar"] {
+    background-color: #1E5631 !important;
+    border-right: 1px solid #1E5631 !important;
+}
+
+    /* Force all text elements in the sidebar to be Black */
+    [data-testid="stSidebar"] .stMarkdown p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] .stCaption {
+        color: #000000 !important; /* Pure Black */
+    }
