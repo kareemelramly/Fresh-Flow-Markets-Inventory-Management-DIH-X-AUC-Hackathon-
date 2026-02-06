@@ -156,9 +156,9 @@ def show_dashboard():
         col_pie, col_stat_table = st.columns([2, 1])
         with col_pie:
             fig_pie = px.pie(df_status, values='count', names='status', hole=0.4)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width="stretch")
         with col_stat_table:
-            st.dataframe(df_status, use_container_width=True, hide_index=True)
+            st.dataframe(df_status, width="stretch", hide_index=True)
     else:
         st.info("📊 No status distribution data available")
 
@@ -178,9 +178,9 @@ def show_dashboard():
         with col_chart:
             fig = px.bar(df_top.head(5), x=val_col, y=item_col, orientation='h', color=val_col)
             fig.update_layout(yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with col_table:
-            st.dataframe(df_top, use_container_width=True, hide_index=True)
+            st.dataframe(df_top, width="stretch", hide_index=True)
     else:
         st.info("📊 No top selling items data available")
 
@@ -224,7 +224,7 @@ def show_inventory():
                     display_df['price'] = display_df['price'].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
                 if 'vat' in display_df.columns:
                     display_df['vat'] = display_df['vat'].apply(lambda x: f"{x}%" if pd.notna(x) else "N/A")
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
+                st.dataframe(display_df, width="stretch", hide_index=True)
         
         with tab2:
             st.subheader("Item Details")
@@ -263,7 +263,7 @@ def show_inventory():
                 ls_df = pd.DataFrame(low_stock_response['data'])
                 # Only show the ID and Name (Title) as requested
                 cols = [c for c in ['id', 'title', 'current_stock'] if c in ls_df.columns]
-                st.dataframe(ls_df[cols], use_container_width=True, hide_index=True)
+                st.dataframe(ls_df[cols], width="stretch", hide_index=True)
             else:
                 st.info("No low stock items found.")
     else:
@@ -337,8 +337,8 @@ def show_forecasting():
                             if 'daily_forecast' in forecast_data:
                                 daily_df = pd.DataFrame(forecast_data['daily_forecast'])
                                 fig = px.line(daily_df, x='date', y='predicted_quantity', title=f'{forecast_days}-Day Demand Forecast')
-                                st.plotly_chart(fig, use_container_width=True)
-                                st.dataframe(daily_df, use_container_width=True, hide_index=True)
+                                st.plotly_chart(fig, width="stretch")
+                                st.dataframe(daily_df, width="stretch", hide_index=True)
                         else:
                             st.error(f"Error: {result.get('error', 'Unknown error')}")
                     else:
@@ -389,7 +389,7 @@ def show_forecasting():
                     if result.get('success'):
                         forecasts = result.get('forecasts', [])
                         summary_data = [{'Item ID': f.get('item_id'), 'Predicted Demand': f"{f.get('predicted_demand', 0):.1f}", 'Confidence': f"{f.get('confidence', 0):.0%}", 'Recommendation': f.get('recommendation', 'N/A')} for f in forecasts]
-                        st.dataframe(pd.DataFrame(summary_data), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
 
 # Page routing
