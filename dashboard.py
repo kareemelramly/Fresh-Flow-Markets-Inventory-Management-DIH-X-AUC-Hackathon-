@@ -199,6 +199,7 @@ def show_inventory():
     }
     if search_term:
         params['search'] = search_term
+        params['page'] = 1
 
     data = fetch_data('/api/inventory/items', params)
     
@@ -206,12 +207,18 @@ def show_inventory():
         items = data['data']
         pagination = data.get('pagination', {})
         
+<<<<<<< HEAD
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
             st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
         
         df = pd.DataFrame(items)
         tab1, tab2, tab3, tab4 = st.tabs(["📋 All Items", "📊 Item Details", "🔍 Quick Search", "🚨 Low Stock"])
+=======
+       
+        df = pd.DataFrame(items)
+        tab1, tab2, tab3 = st.tabs(["📋 All Items", "📊 Item Details", "🚨 Low Stock"])
+>>>>>>> 0a0412b8a84b7af4b190db936d0c735f1a4381a6
         
         with tab1:
             st.subheader("All Inventory Items")
@@ -251,24 +258,37 @@ def show_inventory():
                     st.write(f"**Eat In:** {'Yes' if item.get('eat_in') else 'No'}")
                     st.write(f"**Takeaway:** {'Yes' if item.get('takeaway') else 'No'}")
         
+<<<<<<< HEAD
         with tab3:
             st.subheader("Quick Search")
             st.markdown("Use the search box in the sidebar to filter items by name or barcode")
             st.info("💡 Tip: Try searching for 'Sodavand', 'Øl', or any item name")
         with tab4:
+=======
+    
+        with tab3:
+>>>>>>> 0a0412b8a84b7af4b190db936d0c735f1a4381a6
             st.subheader("🚨 Low Stock Alerts")
             low_stock_response = fetch_data('/api/inventory/low-stock')
             
             if low_stock_response and low_stock_response.get('data'):
                 ls_df = pd.DataFrame(low_stock_response['data'])
+<<<<<<< HEAD
                 # Only show the ID and Name (Title) as requested
+=======
+                # Only show the ID and Name (Title) 
+>>>>>>> 0a0412b8a84b7af4b190db936d0c735f1a4381a6
                 cols = [c for c in ['id', 'title', 'current_stock'] if c in ls_df.columns]
                 st.dataframe(ls_df[cols], use_container_width=True, hide_index=True)
             else:
                 st.info("No low stock items found.")
     else:
         st.warning("⚠️ No inventory data available. Please check API connection.")
-    
+
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+            st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
+        
     if st.button("🔄 Refresh Inventory", type="primary"):
         st.rerun()
 
