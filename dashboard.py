@@ -8,13 +8,12 @@ API_BASE = "http://localhost:5000"
 
 def fetch_data(endpoint, params=None):
     try:
-        response = requests.get(f"{API_BASE}{endpoint}", params=params, timeout=10)
+        response = requests.get(f"{API_BASE}{endpoint}", params=params, timeout=60)
         if response.status_code == 200:
-            data = response.json()
-            if data.get('success') and data.get('data'):
-                return data
+            return response.json() # Return the whole dictionary immediately
         return None
-    except:
+    except Exception as e:
+        st.error(f"Connection Error: {e}") # Show the actual error in the UI
         return None
 
 def safe_columns(df, required_cols):
