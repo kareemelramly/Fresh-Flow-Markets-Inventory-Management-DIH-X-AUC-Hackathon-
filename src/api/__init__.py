@@ -27,10 +27,10 @@ def create_app(db_path='fresh_flow_markets.db'):
     
     # Register blueprints
     from .routes import api_bp
-    #from .ml_routes import ml_bp
+    from .ml_routes import ml_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
-    #app.register_blueprint(ml_bp, url_prefix='/api/ml')
+    app.register_blueprint(ml_bp, url_prefix='/api/ml')
     
     @app.route('/')
     def index():
