@@ -753,7 +753,7 @@ def show_forecasting():
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
         
-        st.markdown("---")
+        # st.markdown("---")
         
         # Advanced Manual Entry (Collapsible)
         with st.expander("Advanced: Manual Feature Entry for new data", expanded=False):
@@ -916,8 +916,89 @@ def show_forecasting():
                         st.error(f"Could not connect to Cashier Risk model: {str(e)}")
             
         st.markdown("---")
-        st.subheader("📋 Batch Analysis")
-        st.info("💡 Tip: Use the batch endpoint /api/ml/operations/batch-cashier-risk to analyze multiple shifts at once.")
+        
+        st.subheader("📋 Batch Operational Risk Analysis")
+        st.markdown("Enter multiple shift records below to monitor for anomalies simultaneously.")
+
+        # 1. Setup a template for the data editor
+        column_config = {
+            "cashier_id": st.column_config.NumberColumn("Cashier ID", min_value=1, required=True),
+            "shift_date": st.column_config.DateColumn("Shift Date", required=True),
+            "order_count": st.column_config.NumberColumn("Orders", min_value=0, required=True),
+            "expected_balance": st.column_config.NumberColumn("Expected ($)", min_value=0.0, format="$%.2f"),
+            "actual_balance": st.column_config.NumberColumn("Actual ($)", min_value=0.0, format="$%.2f"),
+            "total_vat": st.column_config.NumberColumn("VAT ($)", min_value=0.0, format="$%.2f"),
+            
+        }
+
+        # Create a default row for the user to start with
+        initial_data = [{
+            "cashier_id": 45,
+            "shift_date": date.today(),
+            "order_count": 150,
+            "expected_balance": 15000.0,
+            "actual_balance": 14850.0,
+            "total_vat": 3000.0,
+            
+        }]
+        # 2. Spreadsheet-style editor
+        edited_df = st.data_editor(
+            initial_data, 
+            column_config=column_config, 
+            num_rows="dynamic", 
+            use_container_width=True,
+            key="batch_editor"
+        )
+        if st.button("🔍 Analyze Batch Records", type="primary"):
+            formatted_shifts = []
+            for row in edited_df:
+                
+                api_ready_row = {
+                    "cashier_id": row['cashier_id'],
+                    "shift_date": row['shift_date'].strftime("%Y-%m-%d") if hasattr(row['shift_date'], 'strftime') else row['shift_date'],
+                    "order_count": row['order_count'], 
+                    "expected_balance": row['expected_balance'],
+                    "actual_balance": row['expected_balance'] - row['actual_balance'],
+                    "total_vat": row['total_vat']
+                }
+                formatted_shifts.append(api_ready_row)
+
+            payload = {"shifts": formatted_shifts}
+
+            with st.spinner("Processing batch analysis..."):
+                try:
+                    response = requests.post(
+                        f"{API_BASE}/api/ml/operations/batch-cashier-risk", 
+                        json=payload, 
+                        timeout=30
+                    )
+        
+                    if response.status_code == 200:
+                        res = response.json()
+                        if res.get('success'):
+                            st.success(f"Analysis Complete: {res.get('total_shifts')} shifts processed.")
+                            
+                            # Summary Metrics
+                            m1, m2 = st.columns(2)
+                            m1.metric("Critical Risks", res.get('critical_risk_count', 0), delta_color="inverse")
+                            
+                            # Display Results Table
+                            if res.get('detections'):
+                                st.write("### Detection Results")
+                                st.dataframe(res['detections'], use_container_width=True)
+                                
+                            # Highlight Critical Risks
+                            if res.get('critical_risks'):
+                                for risk in res['critical_risks']:
+                                    st.error(f"🚨 **Critical Risk**: Cashier {risk['cashier_id']} on {risk['shift_date']} "
+                                             f"(Score: {risk['risk_assessment']['risk_score']})")
+                        else:
+                            st.error(f"API Error: {res.get('message')}")
+                    else:
+                        st.error(f"HTTP Error {response.status_code}: {response.text}")
+                
+                except Exception as e:
+                    st.error(f"Connection Error: {str(e)}")
 
     
     st.markdown("---")
