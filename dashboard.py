@@ -193,6 +193,21 @@ def show_inventory():
     """Inventory Management Page"""
     st.title("📦 Inventory Management")
     st.markdown("**Monitor and manage your inventory items**")
+    
+    with st.expander("ℹ️ How to Use the Inventory Dashboard", expanded=False): 
+     st.markdown("""
+    ### **Inventory Management Dashboard**
+    
+    This dashboard provides centralized control over your inventory. Use the tools below to maintain optimal stock levels, track item details, and ensure efficient operations.
+    
+    **Key Functionalities:**
+    * **Search & Filter:** Locate specific items instantly using the search bar in the sidebar.
+    * **Item Details:** View comprehensive information for each product by selecting it from the list.
+    * **Low Stock Monitoring:** Items below their defined threshold are automatically highlighted for review.
+    * **View Customization:** Adjust the number of items displayed per page using the selector in the sidebar.
+    
+    **Pro Tip:** Regularly check the "Low Stock" list to prevent inventory shortages.
+    """)
 
     # Use variables from the conditional sidebar defined at top
     params = {
@@ -210,11 +225,9 @@ def show_inventory():
         pagination = data.get('pagination', {})
         
         col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
         
         df = pd.DataFrame(items)
-        tab1, tab2, tab3, tab4 = st.tabs(["📋 All Items", "📊 Item Details", "🔍 Quick Search", "🚨 Low Stock"])
+        tab1, tab2, tab3 = st.tabs(["📋 All Items", "📊 Item Details", "🚨 Low Stock"])
         
         with tab1:
             st.subheader("All Inventory Items")
@@ -228,6 +241,10 @@ def show_inventory():
                 if 'vat' in display_df.columns:
                     display_df['vat'] = display_df['vat'].apply(lambda x: f"{x}%" if pd.notna(x) else "N/A")
                 st.dataframe(display_df, width="stretch", hide_index=True)
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+             st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
+        
         
         with tab2:
             st.subheader("Item Details")
@@ -254,29 +271,23 @@ def show_inventory():
                     st.write(f"**Eat In:** {'Yes' if item.get('eat_in') else 'No'}")
                     st.write(f"**Takeaway:** {'Yes' if item.get('takeaway') else 'No'}")
         
-        with tab3:
-            st.subheader("Quick Search")
-            st.markdown("Use the search box in the sidebar to filter items by name or barcode")
-            st.info("💡 Tip: Try searching for 'Sodavand', 'Øl', or any item name")
+       
         
-        with tab4:
+        with tab3:
             st.subheader("🚨 Low Stock Alerts")
             low_stock_response = fetch_data('/api/inventory/low-stock')
             
             if low_stock_response and low_stock_response.get('data'):
                 ls_df = pd.DataFrame(low_stock_response['data'])
                 # Only show the ID and Name (Title) as requested
-                cols = [c for c in ['id', 'title', 'current_stock'] if c in ls_df.columns]
+                cols = [c for c in ['title','id', 'current_stock'] if c in ls_df.columns]
                 st.dataframe(ls_df[cols], width="stretch", hide_index=True)
             else:
                 st.info("No low stock items found.")
     else:
         st.warning("⚠️ No inventory data available. Please check API connection.")
 
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-            st.info(f"📊 Showing {len(items)} items | Page {pagination.get('page', 1)} of {pagination.get('pages', 1)} | Total: {pagination.get('total', 0)}")
-        
+    
     if st.button("🔄 Refresh Inventory", type="primary"):
         st.rerun()
 
@@ -598,71 +609,8 @@ def show_forecasting():
                 except Exception as e:
                     st.error(f"Batch prediction failed: {str(e)}") 
 
-    with tab6:
-     st.header("🏪 Cashier Integrity and Operational Risk")
-    st.info("Detect anomalous cashier behavior and monitor financial discrepancies.")
 
-    # --- Section 1: Single Shift Analysis ---
-    st.subheader("🔍 Analyze Single Shift")
-    st.info("This model analyzes one cashier’s shift to help you decide whether a shift is normal or needs investigation.")
-    with st.expander("Input Shift Details", expanded=True):
-        with st.form("cashier_risk_form"):
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                cashier_id = st.number_input("Cashier ID", min_value=1, value=45)
-                # Using the date object correctly here
-                shift_date = st.date_input("Shift Date", value=date(2026, 2, 5))
-            with c2:
-                expected_bal = st.number_input("Expected Balance", min_value=0.0, value=15000.0)
-                actual_bal = st.number_input("Actual Balance", min_value=0.0, value=14850.0)
-            with c3:
-                order_count = st.number_input("Order Count", min_value=1, value=150)
-                total_vat = st.number_input("Total VAT", min_value=0.0, value=3000.0)
-            
-            avg_val = st.number_input("Avg Order Value", min_value=0.0, value=100.0)
-            submit_single = st.form_submit_button("🛡️ Run Integrity Check", type="primary")
-
-        if submit_single:
-            # Prepare payload according to POST /operations/cashier-risk
-            payload = {
-                "cashier_id": int(cashier_id),
-                "shift_date": shift_date.strftime("%Y-%m-%d"),
-                "order_count": int(order_count),
-                "expected_balance": float(expected_bal),
-                "actual_balance": float(actual_bal),
-                "total_vat": float(total_vat),
-                "avg_order_value": float(avg_val)
-            }
-
-            with st.spinner("Analyzing integrity..."):
-                try:
-                    response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk", json=payload, timeout=30)
-                    if response.status_code == 200:
-                        res = response.json()
-                        if res.get('success'):
-                            data = res.get('data', {})
-                            risk = data.get('risk_assessment', {})
-                            
-                            # Visual Feedback
-                            score = risk.get('risk_score', 0.0)
-                            level = risk.get('risk_level', 'low').upper()
-                            
-                            # Logic based on documentation thresholds
-                            if score >= 0.8: st.error(f"CRITICAL RISK: {level}")
-                            elif score >= 0.5: st.warning(f"HIGH RISK: {level}")
-                            else: st.success(f"RISK LEVEL: {level}")
-                            
-                            st.progress(score)
-                            
-                            # Metrics
-                            m1, m2 = st.columns(2)
-                            m1.metric("Risk Score", score)
-                            m2.metric("Requires Action", "YES" if risk.get('requires_action') else "NO")
-                        else:
-                            st.error(f"API Error: {res.get('error')}")
-                except Exception as e:
-                    st.error(f"Connection Error: {str(e)}")
-
+    
     st.markdown("---")
 # Page routing
 if page == "Main Statistics":
