@@ -634,7 +634,7 @@ if page == "Home":
     st.markdown("---")
     st.subheader("Empowering Retailers with AI-Driven Inventory Management")
     st.markdown("""
-        Fresh Flow Markets leverages advanced AI to optimize inventory, reduce waste, and maximize profits for fresh produce departments. Our platform is designed to simplify ordering, forecasting, and supplier management for retailers of all sizes.
+        Fresh Flow Markets leverages advanced AI to optimize inventory, reduce waste, and maximize profits for fresh produce departments. Our platform is designed to simplify ordering, casting, and supplier management for retailers of all sizes.
     """)
     st.markdown("---")
     st.markdown("### Why Choose Fresh Flow?")
