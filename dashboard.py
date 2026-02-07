@@ -488,34 +488,59 @@ def show_forecasting():
         if st.button("🚀 Predict ROI", type="primary"):
             with st.spinner("Analyzing campaign variables..."):
                 try:
-                    # Payload structure follows README.md quick start
+                    # Payload structure follows API documentation
                     roi_payload = {
                         "duration_days": duration,
                         "points": points,
-                        "discount": discount,
+                        "discount_percent": discount,
                         "minimum_spend": min_spend
                     }
-                    response = requests.post(f"{API_BASE}/api/ml/predict/campaigns", json=roi_payload, timeout=30)
+                    response = requests.post(f"{API_BASE}/api/ml/campaigns/predict", json=roi_payload, timeout=30)
                     
                     if response.status_code == 200:
                         res = response.json()
                         if res.get('success'):
                             data = res['data']
+                            predictions = data.get('predictions', {})
+                            recommendation = data.get('recommendation', {})
+                            campaign_details = data.get('campaign_details', {})
                             
-                            # Reporting metrics as defined in ML_Models README
-                            m_col1, m_col2 = st.columns(2)
+                            # Reporting metrics
+                            st.success("✅ Campaign Analysis Complete!")
+                            m_col1, m_col2, m_col3 = st.columns(3)
                             with m_col1:
-                                st.metric("Predicted Redemptions", f"{data.get('predicted_redemptions', 0)}")
+                                st.metric("Predicted Redemptions", f"{predictions.get('expected_redemptions', 0):.0f}")
                             with m_col2:
-                                prob = data.get('success_probability_pct', 0)
-                                st.metric("Success Probability", f"{prob}%")
-                                
-                            if prob > 80:
-                                st.success("High probability of campaign success!")
+                                prob = predictions.get('success_probability', 0)
+                                st.metric("Success Probability", f"{prob:.1f}%")
+                            with m_col3:
+                                st.metric("Recommendation", recommendation.get('action', 'N/A').upper())
+                            
+                            # Display insights
+                            st.markdown("#### 💡 Campaign Insights")
+                            col_a, col_b = st.columns(2)
+                            with col_a:
+                                st.write(f"**Duration:** {campaign_details.get('duration_days', 0)} days")
+                                st.write(f"**Points Awarded:** {campaign_details.get('points', 0)}")
+                                st.write(f"**Is Successful:** {'Yes' if predictions.get('is_successful', False) else 'No'}")
+                            with col_b:
+                                st.write(f"**Discount:** {campaign_details.get('discount_percent', 0)}%")
+                                st.write(f"**Min Spend:** ${campaign_details.get('minimum_spend', 0):.2f}")
+                                st.write(f"**Confidence:** {recommendation.get('confidence', 'N/A').title()}")
+                            
+                            # Recommendation reason
+                            st.info(f"💡 **Reason:** {recommendation.get('reason', 'N/A')}")
+                            
+                            if prob >= 70:
+                                st.success("🎯 High probability of campaign success! Recommended to proceed.")
+                            elif prob >= 50:
+                                st.info("⚠️ Moderate success probability. Consider optimizing parameters.")
                             else:
-                                st.warning("Consider adjusting discount or minimum spend to improve ROI.")
+                                st.warning("❌ Low success probability. Adjust discount or minimum spend to improve ROI.")
                         else:
                             st.error(f"Prediction Error: {res.get('error')}")
+                    else:
+                        st.error(f"API Error: {response.status_code} - {response.text}")
                 except Exception as e:
                     st.error(f"Could not connect to ROI model: {str(e)}")
     with tab5:
@@ -524,16 +549,15 @@ def show_forecasting():
 
         with st.expander("🔍 Analyze Single Customer", expanded=True):
             with st.form("churn_form"):
-                col1, col2, col3 = st.columns(3)
+                st.info("📊 Model uses 4 features: discount amount, points earned, average price, and waiting time")
+                col1, col2 = st.columns(2)
                 with col1:
                     cust_id = st.number_input("Customer ID", min_value=1, value=123)
-                    waiting_time = st.number_input("Avg Waiting Time (min)", value=25.5)
+                    discount_amount = st.number_input("Total Discount Amount ($)", min_value=0.0, value=25.0, step=10.0, help="Total discounts received")
+                    points_earned = st.number_input("Points Earned", min_value=0.0, value=500.0, step=100.0)
                 with col2:
-                    rating = st.slider("Recent Rating (1-5)", 1.0, 5.0, 3.5)
-                    points_c = st.number_input("Points Redeemed", value=500)
-                with col3:
-                    vip_thresh = st.number_input("VIP Threshold", value=1000)
-                    last_order = st.number_input("Days Since Last Order", value=15)
+                    price = st.number_input("Avg Order Price ($)", min_value=0.0, value=75.50, step=10.0)
+                    waiting_time = st.number_input("Avg Waiting Time (min)", min_value=0.0, value=25.5, step=0.5)
                 
                 submit = st.form_submit_button("🔮 Predict Churn Risk", type="primary")
 
@@ -542,43 +566,53 @@ def show_forecasting():
                     try:
                         payload = {
                             "customer_id": cust_id,
-                            "recent_waiting_time": waiting_time,
-                            "recent_rating": rating,
-                            "points_redeemed": points_c,
-                            "vip_threshold": vip_thresh,
-                            "days_since_last_order": last_order
+                            "discount_amount": discount_amount,
+                            "points_earned": points_earned,
+                            "price": price,
+                            "waiting_time": waiting_time
                         }
                         response = requests.post(f"{API_BASE}/api/ml/customers/churn-risk", json=payload, timeout=30)
                         
                         if response.status_code == 200:
                             res = response.json()
                             if res.get('success'):
-                                data = res.get('data', {})
-                                risk = data.get('churn_risk', {})
-                                strat = data.get('retention_strategy', {})
-                                insights = data.get('customer_insights', {})
+                                result = res.get('data', {})
+                                # Check if model is ready
+                                if result.get('status') == 'model_not_ready':
+                                    st.warning(f"⚠️ {result.get('message', 'Model not available')}")
+                                else:
+                                    risk = result.get('churn_risk', {})
+                                    strat = result.get('retention_strategy', {})
+                                    insights = result.get('customer_insights', {})
 
-                                st.success("Analysis Complete!")
-                                m1, m2, m3 = st.columns(3)
-                                prob_churn = risk.get('probability', 0)
-                                m1.metric("Churn Probability", f"{prob_churn}%")
-                                m2.metric("Risk Level", risk.get('level', 'N/A').upper())
-                                m3.metric("Status", "VIP" if insights.get('is_vip') else "Standard")
+                                    st.success("Analysis Complete!")
+                                    m1, m2, m3 = st.columns(3)
+                                    prob_churn = risk.get('probability', 0)
+                                    m1.metric("Churn Probability", f"{prob_churn}%")
+                                    m2.metric("Risk Level", risk.get('level', 'N/A').upper())
+                                    m3.metric("Will Churn", "Yes" if risk.get('will_churn', False) else "No")
 
-                                st.write(f"**Risk Severity Assessment:** {risk.get('level', 'Unknown').title()}")
-                                st.progress(prob_churn / 100)
-                                
-                                col_a, col_b = st.columns(2)
-                                with col_a:
-                                    st.markdown("#### 💡 Insights")
-                                    st.write(f"- **Engagement:** {insights.get('engagement_level', 'N/A').title()}")
-                                    st.write(f"- **Satisfaction:** {insights.get('satisfaction_score', 0)*100:.0f}%")
-                                
-                                with col_b:
-                                    st.markdown("#### 🎯 Strategy")
-                                    st.write(f"- **Urgency:** {strat.get('urgency', 'N/A').upper()}")
-                                    for action in strat.get('recommended_actions', []):
-                                        st.write(f"- {action}")
+                                    st.write(f"**Risk Severity Assessment:** {risk.get('level', 'Unknown').title()}")
+                                    st.progress(prob_churn / 100)
+                                    
+                                    col_a, col_b = st.columns(2)
+                                    with col_a:
+                                        st.markdown("#### 💡 Customer Insights")
+                                        st.write(f"- **Engagement:** {insights.get('engagement_level', 'N/A').title()}")
+                                        st.write(f"- **Avg Order Value:** ${insights.get('avg_order_value', 0):.2f}")
+                                        st.write(f"- **Discount Usage:** ${insights.get('discount_usage', 0):.2f}")
+                                    
+                                    with col_b:
+                                        st.markdown("#### 🎯 Retention Strategy")
+                                        st.write(f"**Urgency:** {strat.get('urgency', 'N/A').upper()}")
+                                        st.write(f"**Estimated Cost:** ${strat.get('estimated_retention_cost', 0)}")
+                                        st.markdown("**Recommended Actions:**")
+                                        for action in strat.get('recommended_actions', []):
+                                            st.write(f"- {action}")
+                            else:
+                                st.error(f"Error: {res.get('error', 'Unknown error')}")
+                        else:
+                            st.error(f"API Error: {response.status_code}")
                     except Exception as e:
                         st.error(f"UI Transformation Failed: {str(e)}")
 
@@ -590,11 +624,13 @@ def show_forecasting():
                     current_batch_payload = {
                         "customers": [{
                             "customer_id": cust_id,
-                            "recent_waiting_time": waiting_time,
-                            "recent_rating": rating,
-                            "points_redeemed": points_c,
-                            "vip_threshold": vip_thresh,
-                            "days_since_last_order": last_order
+                            "discount_amount": discount_amount,
+                            "points_earned": points_earned,
+                            "points_redeemed": points_redeemed,
+                            "price": price,
+                            "waiting_time": waiting_time,
+                            "vip_threshold": vip_threshold,
+                            "rating": rating
                         }]
                     }
                     response = requests.post(f"{API_BASE}/api/ml/customers/batch-churn-risk", json=current_batch_payload, timeout=30)
@@ -617,8 +653,268 @@ def show_forecasting():
                                     })
                                 st.dataframe(pd.DataFrame(table_data), use_container_width=True, hide_index=True)
                 except Exception as e:
-                    st.error(f"Batch prediction failed: {str(e)}") 
+                    st.error(f"Batch prediction failed: {str(e)}")
 
+    with tab6:
+        st.subheader("🏪 Cashier Integrity & Operational Risk Monitor")
+        st.markdown("Detect anomalies in cashier performance using aggregated shift data.")
+        
+        # Simplified Auto-Calculate Version
+        st.markdown("### 🚀 Auto-Calculate from Database")
+        st.info("⚡ **Smart Mode**: Just enter Cashier ID - all 20 features are calculated automatically from your database!")
+        
+        with st.form("cashier_auto_form"):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cashier_id_auto = st.number_input("Cashier ID", min_value=1, value=22354, key="auto_cashier")
+            with col2:
+                days_back = st.number_input("Days to Analyze", min_value=1, max_value=365, value=180, 
+                                           help="Recommended: 180-365 days for historical data", key="days_back")
+            with col3:
+                st.write("")  # Spacing
+                
+            submit_auto = st.form_submit_button("🔍 Analyze Cashier Risk", type="primary")
+        
+        if submit_auto:
+            with st.spinner(f"Analyzing cashier {cashier_id_auto} over last {days_back} days..."):
+                try:
+                    payload_auto = {
+                        "cashier_id": cashier_id_auto,
+                        "days_back": days_back
+                    }
+                    response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk-auto", json=payload_auto, timeout=30)
+                    
+                    if response.status_code == 200:
+                        res = response.json()
+                        if res.get('success'):
+                            result = res.get('data', {})
+                            
+                            if result.get('status') == 'success':
+                                st.success("✅ Analysis Complete!")
+                                
+                                risk = result.get('risk_assessment', {})
+                                fin = result.get('financial_metrics', {})
+                                ops = result.get('operational_metrics', {})
+                                period = result.get('data_period', {})
+                                
+                                # Display period info
+                                st.caption(f"📅 Period: {period.get('start_date')} to {period.get('end_date')} ({period.get('days_analyzed')} days)")
+                                
+                                # Risk Metrics
+                                col1, col2, col3, col4 = st.columns(4)
+                                risk_pct = risk.get('risk_score', 0) * 100
+                                col1.metric("Risk Score", f"{risk_pct:.1f}%")
+                                col2.metric("Risk Level", risk.get('risk_level', 'N/A').upper())
+                                col3.metric("Transactions", ops.get('num_transactions', 0))
+                                col4.metric("Action Required", "Yes" if risk.get('requires_action') else "No")
+                                
+                                # Risk Level Indicator
+                                if risk_pct >= 50:
+                                    st.error(f"🚨 **{risk.get('alert_type', 'Alert').upper()}** - Immediate attention required!")
+                                elif risk_pct >= 30:
+                                    st.warning(f"⚠️ **{risk.get('alert_type', 'Warning').upper()}**")
+                                else:
+                                    st.success("✅ Normal operations")
+                                
+                                # Financial Details
+                                st.markdown("#### 💰 Financial Overview")
+                                f_col1, f_col2 = st.columns(2)
+                                with f_col1:
+                                    st.metric("Balance Discrepancy", f"${fin.get('balance_diff_sum', 0):,.2f}")
+                                    st.metric("Total Transactions", f"${fin.get('transaction_total', 0):,.2f}")
+                                with f_col2:
+                                    st.metric("Max Discrepancy %", f"{fin.get('balance_discrepancy_pct', 0):,.1f}%")
+                                    st.metric("Total VAT", f"${fin.get('total_vat', 0):,.2f}")
+                                
+                                # Recommended Actions
+                                st.markdown("#### 📋 Recommended Actions")
+                                for action in result.get('recommended_actions', []):
+                                    st.write(f"- {action}")
+                                    
+                            else:
+                                st.error(f"Error: {result.get('message', 'Unknown error')}")
+                        else:
+                            st.error(f"❌ {res.get('error', 'Unknown error')}")
+                    elif response.status_code == 404:
+                        st.warning(f"⚠️ No data found for cashier {cashier_id_auto} in the last {days_back} days")
+                        
+                        # Try to find available data range
+                        st.info("💡 **Suggestion**: Try analyzing a longer period (90-365 days) for historical cashiers.")
+                        
+                        # Quick tip for historical data
+                        st.markdown("""
+                        **Common Issues:**
+                        - Cashier may be inactive recently
+                        - Historical data ends before the selected time window
+                        - Try 365 days to get full historical analysis
+                        """)
+                    else:
+                        st.error(f"API Error {response.status_code}: {response.text}")
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+        
+        st.markdown("---")
+        
+        # Advanced Manual Entry (Collapsible)
+        with st.expander("🔧 Advanced: Manual Feature Entry", expanded=False):
+            st.warning("⚠️ **Expert Mode**: Manually enter all 20 statistical features. Most users should use Auto-Calculate above.")
+            st.markdown("### Enter Aggregated Cashier Statistics")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            cashier_id = st.number_input("Cashier ID", min_value=1, value=22354, help="Unique cashier identifier")
+        with col2:
+            shift_date = st.date_input("Analysis Date", value=date.today())
+        
+        st.warning("🚨 **Example:** Cashier 22354 - CONFIRMED 100% risk in training data (27,100% max discrepancy!)")
+        
+        st.markdown("#### 📊 Balance Difference Statistics")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            balance_diff_sum = st.number_input("Balance Diff Sum ($)", value=101066.0, step=100.0, help="Total balance discrepancies")
+            balance_diff_mean = st.number_input("Balance Diff Mean ($)", value=66.0, step=1.0, help="Average discrepancy per transaction")
+        with col2:
+            balance_diff_std = st.number_input("Balance Diff Std Dev ($)", value=150.0, step=1.0, help="Variation in discrepancies (high = suspicious)")
+            balance_diff_min = st.number_input("Balance Diff Min ($)", value=-200.0, step=10.0, help="Largest shortage")
+        with col3:
+            balance_diff_max = st.number_input("Balance Diff Max ($)", value=500.0, step=10.0, help="Largest overage")
+            balance_disc_pct_mean = st.number_input("Discrepancy % Mean", value=150.0, step=0.1, help="Average discrepancy percentage")
+        
+        st.markdown("#### 💰 Transaction Statistics")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            balance_disc_pct_max = st.number_input("Discrepancy % Max 🚨", value=27100.0, step=100.0, help="CRITICAL: Maximum discrepancy percentage (model key feature!)")
+            trans_total_sum = st.number_input("Transaction Total Sum ($)", value=213647.75, step=100.0, help="Total transaction value")
+        with col2:
+            trans_total_count = st.number_input("Transaction Count", min_value=1, value=1531, help="Number of transactions")
+            trans_total_mean = st.number_input("Transaction Mean ($)", value=139.5, step=1.0, help="Average transaction value")
+        with col3:
+            vat_sum = st.number_input("VAT Sum ($)", value=32047.16, step=10.0, help="Total VAT collected")
+            num_trans_sum = st.number_input("Num Transactions Sum", min_value=1, value=1531, help="Transaction count")
+        
+        st.markdown("#### 🏦 Balance & Amount Statistics")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            opening_bal_mean = st.number_input("Opening Balance Mean ($)", value=1000.0, step=100.0, help="Average shift opening balance")
+            closing_bal_mean = st.number_input("Closing Balance Mean ($)", value=50000.0, step=100.0, help="Average shift closing balance")
+        with col2:
+            id_count = st.number_input("ID Count", min_value=1, value=1, help="Number of unique cashier IDs")
+            total_amt_sum = st.number_input("Total Amount Sum ($)", value=213647.75, step=100.0, help="Total amount processed")
+        with col3:
+            total_amt_mean = st.number_input("Total Amount Mean ($)", value=139.5, step=1.0, help="Average amount per transaction")
+            total_amt_std = st.number_input("Total Amount Std Dev ($)", value=85.0, step=1.0, help="Transaction amount variation")
+        
+        st.markdown("#### 💵 Cash Statistics")
+        col1, col2 = st.columns(2)
+        with col1:
+            cash_amt_sum = st.number_input("Cash Amount Sum ($)", value=150000.0, step=100.0, help="Total cash handled")
+        with col2:
+            cash_amt_mean = st.number_input("Cash Amount Mean ($)", value=98.0, step=1.0, help="Average cash per transaction")
+        
+        if st.button("🔍 Analyze Cashier Risk", type="primary"):
+            with st.spinner("Analyzing cashier data..."):
+                try:
+                    payload = {
+                        "cashier_id": cashier_id,
+                        "shift_date": shift_date.strftime("%Y-%m-%d"),
+                        "balance_diff_sum": balance_diff_sum,
+                        "balance_diff_mean": balance_diff_mean,
+                        "balance_diff_std": balance_diff_std,
+                        "balance_diff_min": balance_diff_min,
+                        "balance_diff_max": balance_diff_max,
+                        "balance_discrepancy_pct_mean": balance_disc_pct_mean,
+                        "balance_discrepancy_pct_max": balance_disc_pct_max,
+                        "transaction_total_sum": trans_total_sum,
+                        "transaction_total_count": trans_total_count,
+                        "transaction_total_mean": trans_total_mean,
+                        "vat_component_sum": vat_sum,
+                        "num_transactions_sum": num_trans_sum,
+                        "opening_balance_mean": opening_bal_mean,
+                        "closing_balance_mean": closing_bal_mean,
+                        "id_count": id_count,
+                        "total_amount_sum": total_amt_sum,
+                        "total_amount_mean": total_amt_mean,
+                        "total_amount_std": total_amt_std,
+                        "cash_amount_sum": cash_amt_sum,
+                        "cash_amount_mean": cash_amt_mean
+                    }
+                    
+                    response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk", json=payload, timeout=30)
+                    
+                    if response.status_code == 200:
+                        res = response.json()
+                        if res.get('success'):
+                            result = res['data']
+                            # Check if model is ready
+                            if result.get('status') == 'model_not_ready':
+                                st.warning(f"⚠️ {result.get('message', 'Model not available')}")
+                            else:
+                                risk = result.get('risk_assessment', {})
+                                financial = result.get('financial_metrics', {})
+                                operational = result.get('operational_metrics', {})
+                                actions = result.get('recommended_actions', [])
+                                
+                                st.success("✅ Analysis Complete!")
+                                
+                                # Risk Metrics
+                                m1, m2, m3, m4 = st.columns(4)
+                                risk_score = risk.get('risk_score', 0)
+                                m1.metric("Risk Score", f"{risk_score*100:.1f}%")
+                                m2.metric("Risk Level", risk.get('risk_level', 'N/A').upper())
+                                m3.metric("Balance Diff", f"${financial.get('balance_diff_sum', 0):.2f}")
+                                m4.metric("Action Required", "⚠️ Yes" if risk.get('requires_action', False) else "✅ No")
+                                
+                                # Risk visualization
+                                st.markdown("#### 📊 Risk Score")
+                                st.progress(min(risk_score, 1.0))
+                                
+                                # Detailed analysis
+                                st.markdown("---")
+                                col_a, col_b = st.columns(2)
+                                
+                                with col_a:
+                                    st.markdown("#### 💰 Financial Metrics")
+                                    st.write(f"**Balance Difference Sum:** ${financial.get('balance_diff_sum', 0):.2f}")
+                                    st.write(f"**Discrepancy Pct:** {financial.get('balance_discrepancy_pct', 0):.2f}%")
+                                    st.write(f"**Transaction Total:** ${financial.get('transaction_total', 0):.2f}")
+                                    st.write(f"**Total VAT:** ${financial.get('total_vat', 0):.2f}")
+                                
+                                with col_b:
+                                    st.markdown("#### 📋 Operational Metrics")
+                                    st.write(f"**Total Transactions:** {operational.get('num_transactions', 0)}")
+                                    st.write(f"**Avg Transaction Value:** ${operational.get('avg_transaction_value', 0):.2f}")
+                                
+                                # Recommendations
+                                st.markdown("---")
+                                st.markdown("#### 💡 Recommended Actions")
+                                urgency = risk.get('risk_level', 'low')
+                                if urgency == 'critical':
+                                    st.error(f"🚨 **CRITICAL RISK** - Immediate action required")
+                                elif urgency == 'high':
+                                    st.warning(f"⚠️ **HIGH RISK** - Review required")
+                                elif urgency == 'medium':
+                                    st.info(f"🔵 **MEDIUM RISK** - Monitor closely")
+                                else:
+                                    st.success(f"✅ **LOW RISK** - Normal operations")
+                                
+                                for action in actions:
+                                    st.write(f"- {action}")
+                                
+                                # Overall assessment
+                                if risk.get('requires_action', False):
+                                    st.error("⚠️ **Alert:** Potential operational risk detected. Review recommended.")
+                                else:
+                                    st.success("✅ **All Clear:** No significant anomalies detected in this shift.")
+                        else:
+                            st.error(f"Analysis Error: {res.get('error')}")
+                    else:
+                        st.error(f"API Error: {response.status_code} - {response.text}")
+                except Exception as e:
+                    st.error(f"Could not connect to Cashier Risk model: {str(e)}")
+        
+        st.markdown("---")
+        st.subheader("📋 Batch Analysis")
+        st.info("💡 Tip: Use the batch endpoint /api/ml/operations/batch-cashier-risk to analyze multiple shifts at once.")
 
     
     st.markdown("---")

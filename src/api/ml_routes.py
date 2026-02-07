@@ -374,20 +374,22 @@ def predict_churn_risk():
     Request Body:
     {
         "customer_id": 123,
-        "recent_waiting_time": 25.5,
-        "recent_rating": 3.5,
-        "points_redeemed": 500,
-        "vip_threshold": 1000,
-        "days_since_last_order": 15
+        "discount_amount": 1000.50,
+        "points_earned": 5000.0,
+        "points_redeemed": 2500.0,
+        "price": 150.75,
+        "waiting_time": 25.5,
+        "vip_threshold": 3000.0,
+        "rating": 4.2
     }
     """
     try:
         data = request.json
         
-        # Validate required fields
+        # Validate required fields (model uses 4 features)
         required_fields = [
-            'customer_id', 'recent_waiting_time', 'recent_rating',
-            'points_redeemed', 'vip_threshold', 'days_since_last_order'
+            'customer_id', 'discount_amount', 'points_earned',
+            'price', 'waiting_time'
         ]
         missing_fields = [f for f in required_fields if f not in data]
         
@@ -400,11 +402,10 @@ def predict_churn_risk():
         # Predict churn
         prediction = ml_service.predict_customer_churn(
             customer_id=data['customer_id'],
-            recent_waiting_time=data['recent_waiting_time'],
-            recent_rating=data['recent_rating'],
-            points_redeemed=data['points_redeemed'],
-            vip_threshold=data['vip_threshold'],
-            days_since_last_order=data['days_since_last_order']
+            discount_amount=data['discount_amount'],
+            points_earned=data['points_earned'],
+            price=data['price'],
+            waiting_time=data['waiting_time']
         )
         
         return jsonify({'success': True, 'data': prediction})
@@ -487,20 +488,42 @@ def detect_cashier_risk():
     {
         "cashier_id": 45,
         "shift_date": "2026-02-05",
-        "order_count": 150,
-        "expected_balance": 15000.00,
-        "actual_balance": 14850.00,
-        "total_vat": 3000.00,
-        "avg_order_value": 100.00
+        "balance_diff_sum": 101066.0,
+        "balance_diff_mean": 66.0,
+        "balance_diff_std": 50.0,
+        "balance_diff_min": -100.0,
+        "balance_diff_max": 200.0,
+        "balance_discrepancy_pct_mean": 10.5,
+        "balance_discrepancy_pct_max": 27100.0,
+        "transaction_total_sum": 213647.75,
+        "transaction_total_count": 1531,
+        "transaction_total_mean": 139.5,
+        "vat_component_sum": 32047.16,
+        "num_transactions_sum": 1531,
+        "opening_balance_mean": 1000.0,
+        "closing_balance_mean": 50000.0,
+        "id_count": 1,
+        "total_amount_sum": 213647.75,
+        "total_amount_mean": 139.5,
+        "total_amount_std": 45.2,
+        "cash_amount_sum": 150000.0,
+        "cash_amount_mean": 98.0
     }
     """
     try:
         data = request.json
         
-        # Validate required fields
+        # Validate required fields (all 20 features)
         required_fields = [
-            'cashier_id', 'shift_date', 'order_count',
-            'expected_balance', 'actual_balance', 'total_vat'
+            'cashier_id', 'shift_date', 
+            'balance_diff_sum', 'balance_diff_mean', 'balance_diff_std',
+            'balance_diff_min', 'balance_diff_max',
+            'balance_discrepancy_pct_mean', 'balance_discrepancy_pct_max',
+            'transaction_total_sum', 'transaction_total_count', 'transaction_total_mean',
+            'vat_component_sum', 'num_transactions_sum',
+            'opening_balance_mean', 'closing_balance_mean', 'id_count',
+            'total_amount_sum', 'total_amount_mean', 'total_amount_std',
+            'cash_amount_sum', 'cash_amount_mean'
         ]
         missing_fields = [f for f in required_fields if f not in data]
         
@@ -514,12 +537,114 @@ def detect_cashier_risk():
         detection = ml_service.detect_cashier_anomalies(
             cashier_id=data['cashier_id'],
             shift_date=data['shift_date'],
-            order_count=data['order_count'],
-            expected_balance=data['expected_balance'],
-            actual_balance=data['actual_balance'],
-            total_vat=data['total_vat'],
-            avg_order_value=data.get('avg_order_value')
+            balance_diff_sum=data['balance_diff_sum'],
+            balance_diff_mean=data['balance_diff_mean'],
+            balance_diff_std=data['balance_diff_std'],
+            balance_diff_min=data['balance_diff_min'],
+            balance_diff_max=data['balance_diff_max'],
+            balance_discrepancy_pct_mean=data['balance_discrepancy_pct_mean'],
+            balance_discrepancy_pct_max=data['balance_discrepancy_pct_max'],
+            transaction_total_sum=data['transaction_total_sum'],
+            transaction_total_count=data['transaction_total_count'],
+            transaction_total_mean=data['transaction_total_mean'],
+            vat_component_sum=data['vat_component_sum'],
+            num_transactions_sum=data['num_transactions_sum'],
+            opening_balance_mean=data['opening_balance_mean'],
+            closing_balance_mean=data['closing_balance_mean'],
+            id_count=data['id_count'],
+            total_amount_sum=data['total_amount_sum'],
+            total_amount_mean=data['total_amount_mean'],
+            total_amount_std=data['total_amount_std'],
+            cash_amount_sum=data['cash_amount_sum'],
+            cash_amount_mean=data['cash_amount_mean']
         )
+        
+        return jsonify({'success': True, 'data': detection})
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@ml_bp.route('/operations/cashier-risk-auto', methods=['POST'])
+def detect_cashier_risk_auto():
+    """
+    Detect cashier anomalies - SIMPLIFIED VERSION
+    Auto-calculates all 20 features from database using only cashier_id
+    
+    Request Body:
+    {
+        "cashier_id": 22354,
+        "start_date": "2025-01-01",  # Optional
+        "end_date": "2026-02-07",    # Optional
+        "days_back": 30              # Optional, default 30
+    }
+    
+    Response:
+    {
+        "success": true,
+        "data": {
+            "cashier_id": 22354,
+            "risk_assessment": {...},
+            "financial_metrics": {...},
+            "recommended_actions": [...]
+        }
+    }
+    """
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if 'cashier_id' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing required field: cashier_id'
+            }), 400
+        
+        # Import feature calculator
+        import sys
+        sys.path.insert(0, 'src')
+        from utils.cashier_feature_calculator import CashierFeatureCalculator
+        
+        # Calculate features from database
+        calculator = CashierFeatureCalculator()
+        result = calculator.get_cashier_features(
+            cashier_id=data['cashier_id'],
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            days_back=data.get('days_back', 30)
+        )
+        
+        if result['status'] != 'success':
+            return jsonify({
+                'success': False,
+                'error': f"Failed to calculate features: {result.get('message')}"
+            }), 500
+        
+        if not result['metadata']['has_data']:
+            return jsonify({
+                'success': False,
+                'error': f"No data found for cashier {data['cashier_id']} in the specified period"
+            }), 404
+        
+        # Get features and add to request
+        features = result['features']
+        
+        # Call the ML service with calculated features
+        detection = ml_service.detect_cashier_anomalies(
+            cashier_id=data['cashier_id'],
+            shift_date=result['metadata']['end_date'],
+            **features  # Unpack all 20 features
+        )
+        
+        # Add metadata to response
+        detection['data_period'] = {
+            'start_date': result['metadata']['start_date'],
+            'end_date': result['metadata']['end_date'],
+            'days_analyzed': result['metadata']['days_analyzed']
+        }
         
         return jsonify({'success': True, 'data': detection})
     

@@ -578,22 +578,20 @@ class MLPredictionService:
     def predict_customer_churn(
         self,
         customer_id: int,
-        recent_waiting_time: float,
-        recent_rating: float,
-        points_redeemed: int,
-        vip_threshold: float,
-        days_since_last_order: int
+        discount_amount: float,
+        points_earned: float,
+        price: float,
+        waiting_time: float
     ) -> Dict[str, Any]:
         """
-        Predict customer churn probability
+        Predict customer churn probability using actual model features
         
         Args:
             customer_id: Customer ID
-            recent_waiting_time: Average waiting time (minutes)
-            recent_rating: Recent order rating (1-5)
-            points_redeemed: Total points redeemed
-            vip_threshold: VIP threshold for this customer
-            days_since_last_order: Days since last order
+            discount_amount: Total discount amount
+            points_earned: Total points earned
+            price: Average order price
+            waiting_time: Average waiting time (minutes)
         
         Returns:
             Churn prediction and retention recommendations
@@ -606,26 +604,14 @@ class MLPredictionService:
                 'message': 'Customer churn model not yet trained'
             }
         
-        # Prepare features - use common customer churn features
+        # Prepare features matching the actual training data (4 features)
+        # Model was trained on: discount_amount, points_earned, price, waiting_time
         features = pd.DataFrame([{
-            'waiting_time_avg': recent_waiting_time,
-            'rating_avg': recent_rating,
-            'points_redeemed_total': points_redeemed,
-            'vip_threshold': vip_threshold,
-            'days_since_last_order': days_since_last_order,
-            'is_vip': int(points_redeemed >= vip_threshold),
-            'satisfaction_score': recent_rating - (recent_waiting_time / 10),
-            'engagement_score': points_redeemed / max(days_since_last_order, 1)
+            'discount_amount': discount_amount,
+            'points_earned': points_earned,
+            'price': price,
+            'waiting_time': waiting_time
         }])
-        
-        # Try to get feature names from artifacts
-        if 'features' in artifacts and artifacts['features'] is not None:
-            try:
-                # Reorder features to match training
-                feature_names = artifacts['features']
-                features = features[[col for col in feature_names if col in features.columns]]
-            except:
-                pass  # Use features as is
         
         # Scale and predict
         try:
@@ -667,23 +653,25 @@ class MLPredictionService:
                 'Monthly newsletter with special offers'
             ]
         
+        engagement = points_earned / max(waiting_time, 1)  # Points per minute waited
+        
         return {
             'status': 'success',
-            'customer_id': customer_id,
+            'customer_id': int(customer_id),
             'churn_risk': {
-                'probability': round(churn_probability * 100, 1),
-                'level': urgency,
-                'will_churn': churn_probability >= 0.5
+                'probability': round(float(churn_probability) * 100, 1),
+                'level': str(urgency),
+                'will_churn': bool(churn_probability >= 0.5)
             },
             'retention_strategy': {
-                'urgency': urgency,
+                'urgency': str(urgency),
                 'recommended_actions': actions,
-                'estimated_retention_cost': 50 if urgency == 'critical' else 25 if urgency == 'high' else 10
+                'estimated_retention_cost': int(50 if urgency == 'critical' else 25 if urgency == 'high' else 10)
             },
             'customer_insights': {
-                'satisfaction_score': round(recent_rating - (recent_waiting_time / 10), 2),
-                'engagement_level': 'high' if (points_redeemed / max(days_since_last_order, 1)) > 10 else 'medium' if (points_redeemed / max(days_since_last_order, 1)) > 5 else 'low',
-                'is_vip': bool(points_redeemed >= vip_threshold)
+                'engagement_level': str('high' if engagement > 100 else 'medium' if engagement > 50 else 'low'),
+                'avg_order_value': round(float(price), 2),
+                'discount_usage': round(float(discount_amount), 2)
             }
         }
     
@@ -695,23 +683,53 @@ class MLPredictionService:
         self,
         cashier_id: int,
         shift_date: str,
-        order_count: int,
-        expected_balance: float,
-        actual_balance: float,
-        total_vat: float,
-        avg_order_value: Optional[float] = None
+        balance_diff_sum: float,
+        balance_diff_mean: float,
+        balance_diff_std: float,
+        balance_diff_min: float,
+        balance_diff_max: float,
+        balance_discrepancy_pct_mean: float,
+        balance_discrepancy_pct_max: float,
+        transaction_total_sum: float,
+        transaction_total_count: int,
+        transaction_total_mean: float,
+        vat_component_sum: float,
+        num_transactions_sum: int,
+        opening_balance_mean: float,
+        closing_balance_mean: float,
+        id_count: int,
+        total_amount_sum: float,
+        total_amount_mean: float,
+        total_amount_std: float,
+        cash_amount_sum: float,
+        cash_amount_mean: float
     ) -> Dict[str, Any]:
         """
-        Detect anomalous cashier behavior or operational risks
+        Detect anomalous cashier behavior using all 20 required aggregated features
         
         Args:
             cashier_id: Cashier/user ID
             shift_date: Shift date (YYYY-MM-DD)
-            order_count: Number of orders processed
-            expected_balance: Expected cash balance
-            actual_balance: Actual cash balance
-            total_vat: Total VAT collected
-            avg_order_value: Average order value
+            balance_diff_sum: Sum of balance differences
+            balance_diff_mean: Mean of balance differences
+            balance_diff_std: Standard deviation of balance differences
+            balance_diff_min: Minimum balance difference
+            balance_diff_max: Maximum balance difference
+            balance_discrepancy_pct_mean: Mean balance discrepancy percentage
+            balance_discrepancy_pct_max: Maximum balance discrepancy percentage
+            transaction_total_sum: Sum of all transaction totals
+            transaction_total_count: Count of transactions
+            transaction_total_mean: Mean transaction total
+            vat_component_sum: Sum of VAT components
+            num_transactions_sum: Total number of transactions
+            opening_balance_mean: Mean opening balance
+            closing_balance_mean: Mean closing balance
+            id_count: Count of unique IDs
+            total_amount_sum: Sum of total amounts
+            total_amount_mean: Mean total amount
+            total_amount_std: Standard deviation of total amounts
+            cash_amount_sum: Sum of cash amounts
+            cash_amount_mean: Mean cash amount
         
         Returns:
             Anomaly detection results and risk assessment
@@ -724,30 +742,45 @@ class MLPredictionService:
                 'message': 'Cashier risk model not yet trained'
             }
         
-        # Calculate features
-        balance_difference = expected_balance - actual_balance
-        balance_discrepancy_pct = (balance_difference / max(expected_balance, 1)) * 100
+        # Use all 20 actual model features in exact order
+        features = pd.DataFrame([{
+            'balance_diff_sum': balance_diff_sum,
+            'balance_diff_mean': balance_diff_mean,
+            'balance_diff_std': balance_diff_std,
+            'balance_diff_min': balance_diff_min,
+            'balance_diff_max': balance_diff_max,
+            'balance_discrepancy_pct_mean': balance_discrepancy_pct_mean,
+            'balance_discrepancy_pct_max': balance_discrepancy_pct_max,
+            'transaction_total_sum': transaction_total_sum,
+            'transaction_total_count': transaction_total_count,
+            'transaction_total_mean': transaction_total_mean,
+            'vat_component_sum': vat_component_sum,
+            'num_transactions_sum': num_transactions_sum,
+            'opening_balance_mean': opening_balance_mean,
+            'closing_balance_mean': closing_balance_mean,
+            'id_count': id_count,
+            'total_amount_sum': total_amount_sum,
+            'total_amount_mean': total_amount_mean,
+            'total_amount_std': total_amount_std,
+            'cash_amount_sum': cash_amount_sum,
+            'cash_amount_mean': cash_amount_mean
+        }])
         
-        if avg_order_value is None:
-            avg_order_value = expected_balance / max(order_count, 1)
-        
-        features = {
-            'order_count': order_count,
-            'balance_difference': abs(balance_difference),
-            'balance_discrepancy_pct': abs(balance_discrepancy_pct),
-            'total_vat': total_vat,
-            'avg_order_value': avg_order_value,
-            'vat_to_balance_ratio': total_vat / max(expected_balance, 1),
-            'orders_per_hour': order_count / 8  # Assuming 8-hour shift
-        }
-        
-        # Convert to DataFrame
+        # Ensure features match model's expected order
         feature_names = artifacts['features']
-        X = pd.DataFrame([features])[feature_names]
+        X = features[feature_names]
         
         # Scale and predict
         X_scaled = artifacts['scaler'].transform(X)
-        risk_score = artifacts['model'].predict(X_scaled)[0]
+        
+        # Get probability instead of class label
+        model = artifacts['model']
+        if hasattr(model, 'predict_proba'):
+            # Use probability of risky class (class 1)
+            risk_score = model.predict_proba(X_scaled)[0][1]
+        else:
+            # Fallback to binary prediction
+            risk_score = float(model.predict(X_scaled)[0])
         
         # Determine risk level
         if risk_score >= 0.8:
@@ -781,25 +814,23 @@ class MLPredictionService:
         
         return {
             'status': 'success',
-            'cashier_id': cashier_id,
-            'shift_date': shift_date,
+            'cashier_id': int(cashier_id),
+            'shift_date': str(shift_date),
             'risk_assessment': {
-                'risk_score': round(risk_score, 3),
+                'risk_score': round(float(risk_score), 3),
                 'risk_level': risk_level,
                 'alert_type': alert_type,
                 'requires_action': risk_level in ['critical', 'high']
             },
             'financial_metrics': {
-                'expected_balance': round(expected_balance, 2),
-                'actual_balance': round(actual_balance, 2),
-                'difference': round(balance_difference, 2),
-                'discrepancy_percent': round(balance_discrepancy_pct, 2),
-                'total_vat': round(total_vat, 2)
+                'balance_diff_sum': round(float(balance_diff_sum), 2),
+                'balance_discrepancy_pct': round(float(balance_discrepancy_pct_max), 2),
+                'transaction_total': round(float(transaction_total_sum), 2),
+                'total_vat': round(float(vat_component_sum), 2)
             },
             'operational_metrics': {
-                'order_count': order_count,
-                'avg_order_value': round(avg_order_value, 2),
-                'orders_per_hour': round(features['orders_per_hour'], 2)
+                'num_transactions': int(num_transactions_sum),
+                'avg_transaction_value': round(float(transaction_total_sum) / max(float(num_transactions_sum), 1), 2)
             },
             'recommended_actions': recommended_actions
         }

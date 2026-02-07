@@ -105,7 +105,8 @@ ML_MODELS_ANALYSIS.md
 
 # Temporary files
 output.txt
-style.css
+start.ps1
+start.bat
 
 # Archive and backup folders
 archive/
