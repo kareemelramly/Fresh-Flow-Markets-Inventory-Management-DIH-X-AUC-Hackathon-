@@ -471,78 +471,109 @@ def show_forecasting():
                                 })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
-      #  TAB 4 FOR CAMPAIGN ROI ---
+     
     with tab4:
-        st.subheader("🎯 Campaign Success & ROI Predictor")
-        st.markdown("Predict campaign performance before launch based on historical data.")
+        # SECTION 1: SINGLE SCENARIO PREDICTOR
+        st.subheader("🎯 1. Campaign ROI Predictor")
+        st.markdown("Predict specific performance for a single campaign configuration.")
         
-        c1, c2 = st.columns(2)
-        with c1:
-            # Inputs matching Campaign ROI Predictor requirements
-            duration = st.number_input("Campaign Duration (Days)", min_value=1, value=7)
-            points = st.number_input("Loyalty Points Awarded", min_value=0, value=200)
-        with c2:
-            discount = st.slider("Discount Percentage (%)", 0, 100, 20)
-            min_spend = st.number_input("Minimum Spend Requirement ($)", min_value=0, value=75)
+        with st.container():
+            c1, c2 = st.columns(2)
+            with c1:
+                duration = st.number_input("Campaign Duration (Days)", min_value=1, value=7, key="dur_1")
+                points = st.number_input("Loyalty Points Awarded", min_value=0, value=200, key="pts_1")
+            with c2:
+                discount = st.slider("Discount Percentage (%)", 0, 100, 20, key="disc_1")
+                min_spend = st.number_input("Minimum Spend Requirement ($)", min_value=0, value=75, key="spend_1")
             
-        if st.button("🚀 Predict ROI", type="primary"):
-            with st.spinner("Analyzing campaign variables..."):
-                try:
-                    # Payload structure follows API documentation
-                    roi_payload = {
-                        "duration_days": duration,
-                        "points": points,
-                        "discount_percent": discount,
-                        "minimum_spend": min_spend
-                    }
-                    response = requests.post(f"{API_BASE}/api/ml/campaigns/predict", json=roi_payload, timeout=30)
+            if st.button("🚀 Predict ROI", type="primary", key="btn_1"):
+                with st.spinner("Analyzing..."):
+                    try:
+                        roi_payload = {"duration_days": duration, "points": points, "discount_percent": discount, "minimum_spend": min_spend}
+                        response = requests.post(f"{API_BASE}/api/ml/campaigns/predict", json=roi_payload, timeout=30)
+                        if response.status_code == 200:
+                            res = response.json()
+                            if res.get('success'):
+                                data = res['data']
+                                preds = data.get('predictions', {})
+                                rec = data.get('recommendation', {})
+                                m_col1, m_col2, m_col3 = st.columns(3)
+                                with m_col1: st.metric("Redemptions", f"{preds.get('expected_redemptions', 0):.0f}")
+                                with m_col2: st.metric("Success Prob.", f"{preds.get('success_probability', 0):.1f}%")
+                                with m_col3: st.metric("Action", rec.get('action', 'N/A').upper())
+                                st.info(f"💡 **Reason:** {rec.get('reason', 'N/A')}")
+                    except Exception as e: st.error(f"Error: {str(e)}")
+
+        st.markdown("---")
+
+        # SECTION 2: DISCOUNT OPTIMIZER
+        st.subheader("💡 2. Discount Sensitivity Optimizer")
+        st.markdown("Vary the discount levels to find the 'Sweet Spot' for your current strategy.")
+        
+        with st.container():
+            oc1, oc2 = st.columns(2)
+            with oc1:
+                opt_dur = st.number_input("Fixed Duration (Days)", min_value=1, value=7, key="dur_2")
+                opt_pts = st.number_input("Fixed Points", min_value=0, value=200, key="pts_2")
+            with oc2:
+                opt_spend = st.number_input("Fixed Min Spend ($)", min_value=0, value=75, key="spend_2")
+            
+            if st.button("🔍 Run Optimization Scan", key="btn_2"):
+                with st.spinner("Simulating discount levels..."):
+                    opt_results = []
+                    # Testing range of discounts
+                    for d_test in [5, 10, 15, 20, 25, 30, 40, 50, 75]:
+                        try:
+                            payload = {"duration_days": opt_dur, "points": opt_pts, "discount_percent": d_test, "minimum_spend": opt_spend}
+                            r = requests.post(f"{API_BASE}/api/ml/campaigns/predict", json=payload, timeout=10)
+                            if r.status_code == 200:
+                                d = r.json().get('data', {}).get('predictions', {})
+                                opt_results.append({"Discount %": d_test, "Redemptions": d.get('expected_redemptions', 0), "Prob (%)": d.get('success_probability', 0)})
+                        except: continue
                     
-                    if response.status_code == 200:
-                        res = response.json()
-                        if res.get('success'):
-                            data = res['data']
-                            predictions = data.get('predictions', {})
-                            recommendation = data.get('recommendation', {})
-                            campaign_details = data.get('campaign_details', {})
-                            
-                            # Reporting metrics
-                            st.success("✅ Campaign Analysis Complete!")
-                            m_col1, m_col2, m_col3 = st.columns(3)
-                            with m_col1:
-                                st.metric("Predicted Redemptions", f"{predictions.get('expected_redemptions', 0):.0f}")
-                            with m_col2:
-                                prob = predictions.get('success_probability', 0)
-                                st.metric("Success Probability", f"{prob:.1f}%")
-                            with m_col3:
-                                st.metric("Recommendation", recommendation.get('action', 'N/A').upper())
-                            
-                            # Display insights
-                            st.markdown("#### 💡 Campaign Insights")
-                            col_a, col_b = st.columns(2)
-                            with col_a:
-                                st.write(f"**Duration:** {campaign_details.get('duration_days', 0)} days")
-                                st.write(f"**Points Awarded:** {campaign_details.get('points', 0)}")
-                                st.write(f"**Is Successful:** {'Yes' if predictions.get('is_successful', False) else 'No'}")
-                            with col_b:
-                                st.write(f"**Discount:** {campaign_details.get('discount_percent', 0)}%")
-                                st.write(f"**Min Spend:** ${campaign_details.get('minimum_spend', 0):.2f}")
-                                st.write(f"**Confidence:** {recommendation.get('confidence', 'N/A').title()}")
-                            
-                            # Recommendation reason
-                            st.info(f"💡 **Reason:** {recommendation.get('reason', 'N/A')}")
-                            
-                            if prob >= 70:
-                                st.success("🎯 High probability of campaign success! Recommended to proceed.")
-                            elif prob >= 50:
-                                st.info("⚠️ Moderate success probability. Consider optimizing parameters.")
-                            else:
-                                st.warning("❌ Low success probability. Adjust discount or minimum spend to improve ROI.")
-                        else:
-                            st.error(f"Prediction Error: {res.get('error')}")
-                    else:
-                        st.error(f"API Error: {response.status_code} - {response.text}")
-                except Exception as e:
-                    st.error(f"Could not connect to ROI model: {str(e)}")
+                    if opt_results:
+                        df_opt = pd.DataFrame(opt_results)
+                        fig = px.line(df_opt, x="Discount %", y="Redemptions", markers=True, title="Expected Redemptions by Discount Level")
+                        st.plotly_chart(fig, use_container_width=True)
+                        best_d = df_opt.loc[df_opt['Redemptions'].idxmax()]
+                        st.success(f"✅ **Optimal Discount:** {best_d['Discount %']}% yields the highest redemptions ({best_d['Redemptions']:.0f}).")
+
+        st.markdown("---")
+
+        # SECTION 3: BATCH SCENARIO COMPARISON
+        st.subheader("📊 3. Batch Scenario Comparison")
+        st.markdown("Compare a 'Conservative' (low reward) vs 'Aggressive' (high reward) strategy side-by-side.")
+        
+        with st.container():
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                base_dur = st.number_input("Base Duration", min_value=1, value=7, key="dur_3")
+                base_pts = st.number_input("Base Points", min_value=0, value=200, key="pts_3")
+            with bc2:
+                base_disc = st.slider("Base Discount %", 0, 100, 20, key="disc_3")
+                base_spend = st.number_input("Base Min Spend", min_value=0, value=75, key="spend_3")
+
+            if st.button("📈 Compare Scenarios", key="btn_3"):
+                with st.spinner("Processing batch comparison..."):
+                    scenarios = [
+                        {"Name": "Conservative", "d": base_dur, "p": int(base_pts*0.5), "disc": max(0, base_disc-10), "s": base_spend+25},
+                        {"Name": "Current Base", "d": base_dur, "p": base_pts, "disc": base_disc, "s": base_spend},
+                        {"Name": "Aggressive", "d": base_dur, "p": int(base_pts*1.5), "disc": min(100, base_disc+10), "s": max(0, base_spend-25)}
+                    ]
+                    comparison = []
+                    for s in scenarios:
+                        try:
+                            payload = {"duration_days": s["d"], "points": s["p"], "discount_percent": s["disc"], "minimum_spend": s["s"]}
+                            r = requests.post(f"{API_BASE}/api/ml/campaigns/predict", json=payload, timeout=10)
+                            if r.status_code == 200:
+                                d = r.json().get('data', {}).get('predictions', {})
+                                comparison.append({"Scenario": s["Name"], "Redemptions": d.get('expected_redemptions', 0), "Prob (%)": d.get('success_probability', 0)})
+                        except: continue
+                    
+                    if comparison:
+                        df_comp = pd.DataFrame(comparison)
+                        st.plotly_chart(px.bar(df_comp, x="Scenario", y="Redemptions", color="Prob (%)", text_auto='.0f', title="Strategic Comparison"), use_container_width=True)
+                        st.dataframe(df_comp, hide_index=True, use_container_width=True)
     with tab5:
         st.subheader("Customer Churn and Loyalty Prediction")
         st.info("Predict individual customer churn risk and get retention recommendations.")
