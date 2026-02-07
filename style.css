@@ -63,7 +63,7 @@ h3, p, span, label, .stMetric {
 }
 /* --- SIDEBAR STYLING --- */
 [data-testid="stSidebar"] {
-    background-color: #1E5631 !important;
+    background-color: #49554b !important;
     border-right: 1px solid #1E5631 !important;
 }
 
