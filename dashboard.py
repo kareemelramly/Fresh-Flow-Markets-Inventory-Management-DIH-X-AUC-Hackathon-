@@ -1,4 +1,6 @@
-﻿import streamlit as st
+﻿import plotly.express as px
+from business_trends_content import business_trends_sections
+import streamlit as st
 import pandas as pd
 import requests
 import plotly.express as px
@@ -35,18 +37,26 @@ if 'page' not in st.session_state:
     st.session_state.page = "Main Statistics"
 
 # Create clickable text links using columns
-_, nav_col1, nav_col2, nav_col3, logo_col = st.columns([1, 3, 3, 3, 2])
 
+
+_, nav_col_home, nav_col_trends, nav_col1, nav_col2, nav_col3, logo_col = st.columns([1, 2, 2, 2, 2, 2, 2])
+
+with nav_col_home:
+    if st.button("Home"):
+        st.session_state.page = "Home"
+        st.rerun()
+with nav_col_trends:
+    if st.button("Business Trends"):
+        st.session_state.page = "Business Trends"
+        st.rerun()
 with nav_col1:
     if st.button("Main Statistics"):
         st.session_state.page = "Main Statistics"
         st.rerun()
-
 with nav_col2:
     if st.button("Inventory Management"):
         st.session_state.page = "Inventory Management"
         st.rerun()
-
 with nav_col3:
     if st.button("Forecasting Suggestions"):
         st.session_state.page = "Forecasting Suggestions"
@@ -613,7 +623,52 @@ def show_forecasting():
     
     st.markdown("---")
 # Page routing
-if page == "Main Statistics":
+if page == "Home":
+    # --- Redesigned Homepage Inspired by freshflow.ai ---
+    st.markdown("""
+        <div style='text-align:center;'>
+            <img src='logo.png.jpeg' width='120'/>
+        </div>
+    """, unsafe_allow_html=True)
+    st.title("Fuller Shelves, Less Waste")
+    st.markdown("---")
+    st.subheader("Empowering Retailers with AI-Driven Inventory Management")
+    st.markdown("""
+        Fresh Flow Markets leverages advanced AI to optimize inventory, reduce waste, and maximize profits for fresh produce departments. Our platform is designed to simplify ordering, forecasting, and supplier management for retailers of all sizes.
+    """)
+    st.markdown("---")
+    st.markdown("### Why Choose Fresh Flow?")
+    st.markdown("- Reduce stock-outs and waste\n- Boost revenue and margins\n- Make inventory management effortless\n- Empower your team with actionable insights\n- Seamless integration with your current systems")
+    st.markdown("---")
+    st.markdown("### What Our Customers Say")
+    st.info("\"Fresh Flow Markets helped us decrease shrink and increase revenue. The outcome couldn't have been better!\"\n\n- Retail Store Owner")
+    st.info("\"With Fresh Flow's AI, we reduced waste and improved customer satisfaction.\"\n\n- Grocery Manager")
+    st.markdown("---")
+    st.markdown("### Our Solution")
+    st.markdown("- AI-powered demand forecasting\n- Intuitive inventory tracking\n- Easy supplier management\n- Effortless IT integration\n- Designed for fresh produce and retail environments")
+    st.markdown("---")
+    st.markdown("### Ready to try AI that really works for fresh produce?")
+    st.markdown("[Book a Demo](https://calendly.com/mael-freshflow) | [Contact Us](mailto:support@freshflow.com)")
+    st.caption("Deloitte x AUC Hackathon Project | v1.0.4-stable")
+elif page == "Business Trends":
+    st.title("📊 Business Trends")
+    st.info("Explore key business trends, visualize patterns, and gain actionable insights from your data.")
+    st.markdown("---")
+    tabs = st.tabs([section['title'] for section in business_trends_sections])
+
+    for idx, section in enumerate(business_trends_sections):
+        with tabs[idx]:
+            st.subheader(section['title'])
+            st.markdown(section['description'])
+            st.markdown("---")
+            for img in section['images']:
+                try:
+                    st.image(img['file'], caption=img['caption'], use_column_width=True)
+                    st.markdown(f"*{img.get('desc', '')}*")
+                except Exception as e:
+                    st.warning(f"Image not found or cannot be displayed: {img['file']} ({e})")
+            st.markdown("---")
+elif page == "Main Statistics":
     show_dashboard()
 elif page == "Inventory Management":
     show_inventory()
