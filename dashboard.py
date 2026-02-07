@@ -661,7 +661,7 @@ def show_forecasting():
         
         # Quick Lookup from Pre-calculated Data
         st.markdown("### 🔍 Quick Risk Lookup")
-        st.info("⚡ **Fast Mode**: Enter Cashier ID to get pre-calculated risk assessment from historical analysis (697 cashiers analyzed)")
+        st.info("Enter Cashier ID to get pre-calculated risk assessment from historical analysis")
         
         with st.form("cashier_lookup_form"):
             col1, col2 = st.columns([2, 1])
@@ -691,7 +691,7 @@ def show_forecasting():
                             col1.metric("Risk Probability", f"{risk_prob:.1f}%")
                             col2.metric("Risk Category", result.get('risk_category', 'N/A'))
                             col3.metric("Total Transactions", f"{result.get('num_transactions_sum', 0):,.0f}")
-                            col4.metric("Transaction Total", f"${result.get('transaction_total_sum', 0):,.2f}")
+                            col4.metric("Amount of Transaction Total", f"${result.get('transaction_total_sum', 0):,.2f}")
                             
                             # Risk Level Indicator
                             if result.get('risk_category') == 'CRITICAL':
@@ -725,162 +725,165 @@ def show_forecasting():
         st.markdown("---")
         
         # Advanced Manual Entry (Collapsible)
-        with st.expander("🔧 Advanced: Manual Feature Entry (For New Data)", expanded=False):
-            st.warning("⚠️ **Expert Mode**: Manually enter all 20 statistical features for cashiers not in the database.")
-            st.markdown("### Enter Aggregated Cashier Statistics")
+        with st.expander("Advanced: Manual Feature Entry for new data", expanded=False):
+            st.warning("Use this section **only if the cashier is not available in Quick Lookup**. "
+        "Enter **summary statistics for one cashier during a single shift or time period**. "
+        "If exact values are unknown, use **reasonable estimates**. "
+        "Higher discrepancies, unusually large percentages, or high variability may indicate elevated risk." )
+            
         
-        col1, col2 = st.columns(2)
-        with col1:
-            cashier_id = st.number_input("Cashier ID", min_value=1, value=22354, help="Unique cashier identifier")
-        with col2:
-            shift_date = st.date_input("Analysis Date", value=date.today())
-        
-        st.warning("🚨 **Example:** Cashier 22354 - CONFIRMED 100% risk in training data (27,100% max discrepancy!)")
-        
-        st.markdown("#### 📊 Balance Difference Statistics")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            balance_diff_sum = st.number_input("Balance Diff Sum ($)", value=101066.0, step=100.0, help="Total balance discrepancies")
-            balance_diff_mean = st.number_input("Balance Diff Mean ($)", value=66.0, step=1.0, help="Average discrepancy per transaction")
-        with col2:
-            balance_diff_std = st.number_input("Balance Diff Std Dev ($)", value=150.0, step=1.0, help="Variation in discrepancies (high = suspicious)")
-            balance_diff_min = st.number_input("Balance Diff Min ($)", value=-200.0, step=10.0, help="Largest shortage")
-        with col3:
-            balance_diff_max = st.number_input("Balance Diff Max ($)", value=500.0, step=10.0, help="Largest overage")
-            balance_disc_pct_mean = st.number_input("Discrepancy % Mean", value=150.0, step=0.1, help="Average discrepancy percentage")
-        
-        st.markdown("#### 💰 Transaction Statistics")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            balance_disc_pct_max = st.number_input("Discrepancy % Max 🚨", value=27100.0, step=100.0, help="CRITICAL: Maximum discrepancy percentage (model key feature!)")
-            trans_total_sum = st.number_input("Transaction Total Sum ($)", value=213647.75, step=100.0, help="Total transaction value")
-        with col2:
-            trans_total_count = st.number_input("Transaction Count", min_value=1, value=1531, help="Number of transactions")
-            trans_total_mean = st.number_input("Transaction Mean ($)", value=139.5, step=1.0, help="Average transaction value")
-        with col3:
-            vat_sum = st.number_input("VAT Sum ($)", value=32047.16, step=10.0, help="Total VAT collected")
-            num_trans_sum = st.number_input("Num Transactions Sum", min_value=1, value=1531, help="Transaction count")
-        
-        st.markdown("#### 🏦 Balance & Amount Statistics")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            opening_bal_mean = st.number_input("Opening Balance Mean ($)", value=1000.0, step=100.0, help="Average shift opening balance")
-            closing_bal_mean = st.number_input("Closing Balance Mean ($)", value=50000.0, step=100.0, help="Average shift closing balance")
-        with col2:
-            id_count = st.number_input("ID Count", min_value=1, value=1, help="Number of unique cashier IDs")
-            total_amt_sum = st.number_input("Total Amount Sum ($)", value=213647.75, step=100.0, help="Total amount processed")
-        with col3:
-            total_amt_mean = st.number_input("Total Amount Mean ($)", value=139.5, step=1.0, help="Average amount per transaction")
-            total_amt_std = st.number_input("Total Amount Std Dev ($)", value=85.0, step=1.0, help="Transaction amount variation")
-        
-        st.markdown("#### 💵 Cash Statistics")
-        col1, col2 = st.columns(2)
-        with col1:
-            cash_amt_sum = st.number_input("Cash Amount Sum ($)", value=150000.0, step=100.0, help="Total cash handled")
-        with col2:
-            cash_amt_mean = st.number_input("Cash Amount Mean ($)", value=98.0, step=1.0, help="Average cash per transaction")
-        
-        if st.button("🔍 Analyze Cashier Risk", type="primary"):
-            with st.spinner("Analyzing cashier data..."):
-                try:
-                    payload = {
-                        "cashier_id": cashier_id,
-                        "shift_date": shift_date.strftime("%Y-%m-%d"),
-                        "balance_diff_sum": balance_diff_sum,
-                        "balance_diff_mean": balance_diff_mean,
-                        "balance_diff_std": balance_diff_std,
-                        "balance_diff_min": balance_diff_min,
-                        "balance_diff_max": balance_diff_max,
-                        "balance_discrepancy_pct_mean": balance_disc_pct_mean,
-                        "balance_discrepancy_pct_max": balance_disc_pct_max,
-                        "transaction_total_sum": trans_total_sum,
-                        "transaction_total_count": trans_total_count,
-                        "transaction_total_mean": trans_total_mean,
-                        "vat_component_sum": vat_sum,
-                        "num_transactions_sum": num_trans_sum,
-                        "opening_balance_mean": opening_bal_mean,
-                        "closing_balance_mean": closing_bal_mean,
-                        "id_count": id_count,
-                        "total_amount_sum": total_amt_sum,
-                        "total_amount_mean": total_amt_mean,
-                        "total_amount_std": total_amt_std,
-                        "cash_amount_sum": cash_amt_sum,
-                        "cash_amount_mean": cash_amt_mean
-                    }
-                    
-                    response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk", json=payload, timeout=30)
-                    
-                    if response.status_code == 200:
-                        res = response.json()
-                        if res.get('success'):
-                            result = res['data']
-                            # Check if model is ready
-                            if result.get('status') == 'model_not_ready':
-                                st.warning(f"⚠️ {result.get('message', 'Model not available')}")
+            col1, col2 = st.columns(2)
+            with col1:
+                cashier_id = st.number_input("Cashier ID", min_value=1, value=22354, help="Unique cashier identifier")
+            with col2:
+                shift_date = st.date_input("Shift Date", value=date.today())
+            
+            # st.warning("🚨 **Example:** Cashier 22354 - CONFIRMED 100% risk in training data (27,100% max discrepancy!)")
+            
+            st.markdown("#### 📊 Balance Difference Statistics")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                balance_diff_sum = st.number_input("Balance Diff Sum ($)", value=101066.0, step=100.0, help="Total balance discrepancies")
+                balance_diff_mean = st.number_input("Balance Diff Mean ($)", value=66.0, step=1.0, help="Average discrepancy per transaction")
+            with col2:
+                balance_diff_std = st.number_input("Balance Diff Std Dev ($)", value=150.0, step=1.0, help="Variation in discrepancies (high = suspicious)")
+                balance_diff_min = st.number_input("Balance Diff Min ($)", value=-200.0, step=10.0, help="Largest shortage")
+            with col3:
+                balance_diff_max = st.number_input("Balance Diff Max ($)", value=500.0, step=10.0, help="Largest overage")
+                balance_disc_pct_mean = st.number_input("Discrepancy % Mean", value=150.0, step=0.1, help="Average discrepancy percentage")
+            
+            st.markdown("#### 💰 Transaction Statistics")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                balance_disc_pct_max = st.number_input("Discrepancy % Max 🚨", value=27100.0, step=100.0, help="CRITICAL: Maximum discrepancy percentage (model key feature!)")
+                trans_total_sum = st.number_input("Transaction Total Sum ($)", value=213647.75, step=100.0, help="Total transaction value")
+            with col2:
+                trans_total_count = st.number_input("Transaction Count", min_value=1, value=1531, help="Number of transactions")
+                trans_total_mean = st.number_input("Transaction Mean ($)", value=139.5, step=1.0, help="Average transaction value")
+            with col3:
+                vat_sum = st.number_input("VAT Sum ($)", value=32047.16, step=10.0, help="Total VAT collected")
+                num_trans_sum = st.number_input("Num Transactions Sum", min_value=1, value=1531, help="Transaction count")
+            
+            st.markdown("#### 🏦 Balance & Amount Statistics")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                opening_bal_mean = st.number_input("Opening Balance Mean ($)", value=1000.0, step=100.0, help="Average shift opening balance")
+                closing_bal_mean = st.number_input("Closing Balance Mean ($)", value=50000.0, step=100.0, help="Average shift closing balance")
+            with col2:
+                id_count = st.number_input("ID Count", min_value=1, value=1, help="Number of unique cashier IDs")
+                total_amt_sum = st.number_input("Total Amount Sum ($)", value=213647.75, step=100.0, help="Total amount processed")
+            with col3:
+                total_amt_mean = st.number_input("Total Amount Mean ($)", value=139.5, step=1.0, help="Average amount per transaction")
+                total_amt_std = st.number_input("Total Amount Std Dev ($)", value=85.0, step=1.0, help="Transaction amount variation")
+            
+            st.markdown("#### 💵 Cash Statistics")
+            col1, col2 = st.columns(2)
+            with col1:
+                cash_amt_sum = st.number_input("Cash Amount Sum ($)", value=150000.0, step=100.0, help="Total cash handled")
+            with col2:
+                cash_amt_mean = st.number_input("Cash Amount Mean ($)", value=98.0, step=1.0, help="Average cash per transaction")
+            
+            if st.button("🔍 Analyze Cashier Risk", type="primary"):
+                with st.spinner("Analyzing cashier data..."):
+                    try:
+                        payload = {
+                            "cashier_id": cashier_id,
+                            "shift_date": shift_date.strftime("%Y-%m-%d"),
+                            "balance_diff_sum": balance_diff_sum,
+                            "balance_diff_mean": balance_diff_mean,
+                            "balance_diff_std": balance_diff_std,
+                            "balance_diff_min": balance_diff_min,
+                            "balance_diff_max": balance_diff_max,
+                            "balance_discrepancy_pct_mean": balance_disc_pct_mean,
+                            "balance_discrepancy_pct_max": balance_disc_pct_max,
+                            "transaction_total_sum": trans_total_sum,
+                            "transaction_total_count": trans_total_count,
+                            "transaction_total_mean": trans_total_mean,
+                            "vat_component_sum": vat_sum,
+                            "num_transactions_sum": num_trans_sum,
+                            "opening_balance_mean": opening_bal_mean,
+                            "closing_balance_mean": closing_bal_mean,
+                            "id_count": id_count,
+                            "total_amount_sum": total_amt_sum,
+                            "total_amount_mean": total_amt_mean,
+                            "total_amount_std": total_amt_std,
+                            "cash_amount_sum": cash_amt_sum,
+                            "cash_amount_mean": cash_amt_mean
+                        }
+                        
+                        response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk", json=payload, timeout=30)
+                        
+                        if response.status_code == 200:
+                            res = response.json()
+                            if res.get('success'):
+                                result = res['data']
+                                # Check if model is ready
+                                if result.get('status') == 'model_not_ready':
+                                    st.warning(f"⚠️ {result.get('message', 'Model not available')}")
+                                else:
+                                    risk = result.get('risk_assessment', {})
+                                    financial = result.get('financial_metrics', {})
+                                    operational = result.get('operational_metrics', {})
+                                    actions = result.get('recommended_actions', [])
+                                    
+                                    st.success("✅ Analysis Complete!")
+                                    
+                                    # Risk Metrics
+                                    m1, m2, m3, m4 = st.columns(4)
+                                    risk_score = risk.get('risk_score', 0)
+                                    m1.metric("Risk Score", f"{risk_score*100:.1f}%")
+                                    m2.metric("Risk Level", risk.get('risk_level', 'N/A').upper())
+                                    m3.metric("Balance Diff", f"${financial.get('balance_diff_sum', 0):.2f}")
+                                    m4.metric("Action Required", "⚠️ Yes" if risk.get('requires_action', False) else "✅ No")
+                                    
+                                    # Risk visualization
+                                    st.markdown("#### 📊 Risk Score")
+                                    st.progress(min(risk_score, 1.0))
+                                    
+                                    # Detailed analysis
+                                    st.markdown("---")
+                                    col_a, col_b = st.columns(2)
+                                    
+                                    with col_a:
+                                        st.markdown("#### 💰 Financial Metrics")
+                                        st.write(f"**Balance Difference Sum:** ${financial.get('balance_diff_sum', 0):.2f}")
+                                        st.write(f"**Discrepancy Pct:** {financial.get('balance_discrepancy_pct', 0):.2f}%")
+                                        st.write(f"**Transaction Total:** ${financial.get('transaction_total', 0):.2f}")
+                                        st.write(f"**Total VAT:** ${financial.get('total_vat', 0):.2f}")
+                                    
+                                    with col_b:
+                                        st.markdown("#### 📋 Operational Metrics")
+                                        st.write(f"**Total Transactions:** {operational.get('num_transactions', 0)}")
+                                        st.write(f"**Avg Transaction Value:** ${operational.get('avg_transaction_value', 0):.2f}")
+                                    
+                                    # Recommendations
+                                    st.markdown("---")
+                                    st.markdown("#### 💡 Recommended Actions")
+                                    urgency = risk.get('risk_level', 'low')
+                                    if urgency == 'critical':
+                                        st.error(f"🚨 **CRITICAL RISK** - Immediate action required")
+                                    elif urgency == 'high':
+                                        st.warning(f"⚠️ **HIGH RISK** - Review required")
+                                    elif urgency == 'medium':
+                                        st.info(f"🔵 **MEDIUM RISK** - Monitor closely")
+                                    else:
+                                        st.success(f"✅ **LOW RISK** - Normal operations")
+                                    
+                                    for action in actions:
+                                        st.write(f"- {action}")
+                                    
+                                    # Overall assessment
+                                    if risk.get('requires_action', False):
+                                        st.error("⚠️ **Alert:** Potential operational risk detected. Review recommended.")
+                                    else:
+                                        st.success("✅ **All Clear:** No significant anomalies detected in this shift.")
                             else:
-                                risk = result.get('risk_assessment', {})
-                                financial = result.get('financial_metrics', {})
-                                operational = result.get('operational_metrics', {})
-                                actions = result.get('recommended_actions', [])
-                                
-                                st.success("✅ Analysis Complete!")
-                                
-                                # Risk Metrics
-                                m1, m2, m3, m4 = st.columns(4)
-                                risk_score = risk.get('risk_score', 0)
-                                m1.metric("Risk Score", f"{risk_score*100:.1f}%")
-                                m2.metric("Risk Level", risk.get('risk_level', 'N/A').upper())
-                                m3.metric("Balance Diff", f"${financial.get('balance_diff_sum', 0):.2f}")
-                                m4.metric("Action Required", "⚠️ Yes" if risk.get('requires_action', False) else "✅ No")
-                                
-                                # Risk visualization
-                                st.markdown("#### 📊 Risk Score")
-                                st.progress(min(risk_score, 1.0))
-                                
-                                # Detailed analysis
-                                st.markdown("---")
-                                col_a, col_b = st.columns(2)
-                                
-                                with col_a:
-                                    st.markdown("#### 💰 Financial Metrics")
-                                    st.write(f"**Balance Difference Sum:** ${financial.get('balance_diff_sum', 0):.2f}")
-                                    st.write(f"**Discrepancy Pct:** {financial.get('balance_discrepancy_pct', 0):.2f}%")
-                                    st.write(f"**Transaction Total:** ${financial.get('transaction_total', 0):.2f}")
-                                    st.write(f"**Total VAT:** ${financial.get('total_vat', 0):.2f}")
-                                
-                                with col_b:
-                                    st.markdown("#### 📋 Operational Metrics")
-                                    st.write(f"**Total Transactions:** {operational.get('num_transactions', 0)}")
-                                    st.write(f"**Avg Transaction Value:** ${operational.get('avg_transaction_value', 0):.2f}")
-                                
-                                # Recommendations
-                                st.markdown("---")
-                                st.markdown("#### 💡 Recommended Actions")
-                                urgency = risk.get('risk_level', 'low')
-                                if urgency == 'critical':
-                                    st.error(f"🚨 **CRITICAL RISK** - Immediate action required")
-                                elif urgency == 'high':
-                                    st.warning(f"⚠️ **HIGH RISK** - Review required")
-                                elif urgency == 'medium':
-                                    st.info(f"🔵 **MEDIUM RISK** - Monitor closely")
-                                else:
-                                    st.success(f"✅ **LOW RISK** - Normal operations")
-                                
-                                for action in actions:
-                                    st.write(f"- {action}")
-                                
-                                # Overall assessment
-                                if risk.get('requires_action', False):
-                                    st.error("⚠️ **Alert:** Potential operational risk detected. Review recommended.")
-                                else:
-                                    st.success("✅ **All Clear:** No significant anomalies detected in this shift.")
+                                st.error(f"Analysis Error: {res.get('error')}")
                         else:
-                            st.error(f"Analysis Error: {res.get('error')}")
-                    else:
-                        st.error(f"API Error: {response.status_code} - {response.text}")
-                except Exception as e:
-                    st.error(f"Could not connect to Cashier Risk model: {str(e)}")
-        
+                            st.error(f"API Error: {response.status_code} - {response.text}")
+                    except Exception as e:
+                        st.error(f"Could not connect to Cashier Risk model: {str(e)}")
+            
         st.markdown("---")
         st.subheader("📋 Batch Analysis")
         st.info("💡 Tip: Use the batch endpoint /api/ml/operations/batch-cashier-risk to analyze multiple shifts at once.")
