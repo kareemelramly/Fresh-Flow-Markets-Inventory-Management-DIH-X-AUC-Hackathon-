@@ -2,7 +2,7 @@
 import pandas as pd
 import requests
 import plotly.express as px
-
+from datetime import date
 # API Configuration
 API_BASE = "http://localhost:5000"
 
@@ -297,12 +297,14 @@ def show_forecasting():
         st.warning("⚠️ ML Service may not be fully operational")
     
     st.markdown("---")
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📈 Demand Forecast", 
         "📦 Reorder Recommendations", 
         "🔄 Bulk Forecast",
-        "🎯 Campaign ROI",         
-        "👥 Customer Churn"         
+        "🎯 Campaign ROI",
+        "👥 Customer Churn",
+        "🏪 Cashier Integrity and Operational Risk"
+
     ])
     with tab1:
         st.subheader("Predict Item Demand")
@@ -338,11 +340,13 @@ def show_forecasting():
                                 st.success(f"**Forecast for:** {item_info.get('name', 'Unknown Item')}")
                                 st.metric("Current Price", f"${item_info.get('current_price', 0):.2f}")
                             
+                            # Show forecast status message if available
                             if 'message' in forecast_data:
                                 st.info(f"ℹ️ {forecast_data['message']}")
                             
                             st.subheader("Forecast Results")
                             
+                            # Calculate total demand from predictions array
                             if 'predictions' in forecast_data:
                                 daily_df = pd.DataFrame(forecast_data['predictions'])
                                 total_demand = daily_df['predicted_quantity'].sum()
@@ -387,12 +391,14 @@ def show_forecasting():
                             reorder_data = result['data']
                             recommendations = reorder_data.get('recommendations', {})
                             
+                            # Display key metrics
                             cols = st.columns(4)
                             with cols[0]: st.metric("Reorder Quantity", f"{recommendations.get('reorder_quantity', 0):.0f}")
                             with cols[1]: st.metric("Safety Stock", f"{recommendations.get('safety_stock_level', 0):.0f}")
                             with cols[2]: st.metric("Predicted Demand", f"{reorder_data.get('predicted_demand', 0):.0f}")
                             with cols[3]: st.metric("Urgency", recommendations.get('urgency', 'N/A').upper())
                             
+                            # Additional info
                             if recommendations.get('reorder_needed'):
                                 st.warning(f"⚠️ Reorder needed! Stockout expected: {recommendations.get('days_until_stockout', 'N/A')}")
                             else:
@@ -414,10 +420,13 @@ def show_forecasting():
                         forecasts = result.get('forecasts', [])
                         summary_data = []
                         for f in forecasts:
+                            # Calculate total demand from predictions array
                             predictions = f.get('predictions', [])
                             if predictions:
                                 total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
                                 avg_daily = total_demand / len(predictions) if predictions else 0
+                                
+                                # Make status more user-friendly
                                 status = f.get('status', 'N/A')
                                 if status == 'model_not_available':
                                     status_display = '⚠️ Fallback Estimate'
@@ -441,8 +450,7 @@ def show_forecasting():
                                 })
                         st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
             except Exception as e: st.error(f"Error: {str(e)}")
-
-    #  TAB 4 FOR CAMPAIGN ROI ---
+      #  TAB 4 FOR CAMPAIGN ROI ---
     with tab4:
         st.subheader("🎯 Campaign Success & ROI Predictor")
         st.markdown("Predict campaign performance before launch based on historical data.")
@@ -590,10 +598,72 @@ def show_forecasting():
                 except Exception as e:
                     st.error(f"Batch prediction failed: {str(e)}") 
 
-        
+    with tab6:
+     st.header("🏪 Cashier Integrity and Operational Risk")
+    st.info("Detect anomalous cashier behavior and monitor financial discrepancies.")
 
+    # --- Section 1: Single Shift Analysis ---
+    st.subheader("🔍 Analyze Single Shift")
+    st.info("This model analyzes one cashier’s shift to help you decide whether a shift is normal or needs investigation.")
+    with st.expander("Input Shift Details", expanded=True):
+        with st.form("cashier_risk_form"):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                cashier_id = st.number_input("Cashier ID", min_value=1, value=45)
+                # Using the date object correctly here
+                shift_date = st.date_input("Shift Date", value=date(2026, 2, 5))
+            with c2:
+                expected_bal = st.number_input("Expected Balance", min_value=0.0, value=15000.0)
+                actual_bal = st.number_input("Actual Balance", min_value=0.0, value=14850.0)
+            with c3:
+                order_count = st.number_input("Order Count", min_value=1, value=150)
+                total_vat = st.number_input("Total VAT", min_value=0.0, value=3000.0)
+            
+            avg_val = st.number_input("Avg Order Value", min_value=0.0, value=100.0)
+            submit_single = st.form_submit_button("🛡️ Run Integrity Check", type="primary")
 
+        if submit_single:
+            # Prepare payload according to POST /operations/cashier-risk
+            payload = {
+                "cashier_id": int(cashier_id),
+                "shift_date": shift_date.strftime("%Y-%m-%d"),
+                "order_count": int(order_count),
+                "expected_balance": float(expected_bal),
+                "actual_balance": float(actual_bal),
+                "total_vat": float(total_vat),
+                "avg_order_value": float(avg_val)
+            }
 
+            with st.spinner("Analyzing integrity..."):
+                try:
+                    response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk", json=payload, timeout=30)
+                    if response.status_code == 200:
+                        res = response.json()
+                        if res.get('success'):
+                            data = res.get('data', {})
+                            risk = data.get('risk_assessment', {})
+                            
+                            # Visual Feedback
+                            score = risk.get('risk_score', 0.0)
+                            level = risk.get('risk_level', 'low').upper()
+                            
+                            # Logic based on documentation thresholds
+                            if score >= 0.8: st.error(f"CRITICAL RISK: {level}")
+                            elif score >= 0.5: st.warning(f"HIGH RISK: {level}")
+                            else: st.success(f"RISK LEVEL: {level}")
+                            
+                            st.progress(score)
+                            
+                            # Metrics
+                            m1, m2 = st.columns(2)
+                            m1.metric("Risk Score", score)
+                            m2.metric("Requires Action", "YES" if risk.get('requires_action') else "NO")
+                        else:
+                            st.error(f"API Error: {res.get('error')}")
+                except Exception as e:
+                    st.error(f"Connection Error: {str(e)}")
+
+    st.markdown("---")
 # Page routing
 if page == "Main Statistics":
     show_dashboard()
