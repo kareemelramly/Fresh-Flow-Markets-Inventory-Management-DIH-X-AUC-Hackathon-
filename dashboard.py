@@ -383,7 +383,13 @@ def show_forecasting():
                             else:
                                 st.warning("No forecast predictions available in the response.")
                         else:
-                            st.error(f"Error: {result.get('error', 'Unknown error')}")
+                            st.error(f"❌ {result.get('error', 'Unknown error')}")
+                    elif response.status_code == 400:
+                        result = response.json()
+                        st.error(f"❌ Cannot Generate Forecast")
+                        st.warning(f"**Reason:** {result.get('error', 'Insufficient data')}")
+                        if 'details' in result:
+                            st.info(f"**Details:** Category: {result['details'].get('category_attempted', 'Unknown')}")
                     else:
                         st.error(f"API Error: {response.status_code}")
                 except Exception as e:
@@ -424,7 +430,14 @@ def show_forecasting():
                                 st.warning(f"⚠️ Reorder needed! Stockout expected: {recommendations.get('days_until_stockout', 'N/A')}")
                             else:
                                 st.success("✅ Stock levels adequate")
-                        else: st.error(f"Error: {result.get('error', 'Unknown error')}")
+                        else:
+                            st.error(f"❌ {result.get('error', 'Unknown error')}")
+                    elif response.status_code == 400:
+                        result = response.json()
+                        st.error(f"❌ Cannot Calculate Reorder Recommendations")
+                        st.warning(f"**Reason:** {result.get('error', 'Insufficient data')}")
+                    else:
+                        st.error(f"API Error: {response.status_code}")
                 except Exception as e: st.error(f"Failed: {str(e)}")
 
     with tab3:
@@ -440,36 +453,53 @@ def show_forecasting():
                     if result.get('success'):
                         forecasts = result.get('forecasts', [])
                         summary_data = []
+                        errors_found = []
+                        
                         for f in forecasts:
-                            # Calculate total demand from predictions array
-                            predictions = f.get('predictions', [])
-                            if predictions:
-                                total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
-                                avg_daily = total_demand / len(predictions) if predictions else 0
-                                
-                                # Make status more user-friendly
-                                status = f.get('status', 'N/A')
-                                if status == 'model_not_available':
-                                    status_display = '⚠️ Fallback Estimate'
-                                elif status == 'success':
-                                    status_display = '✅ ML Prediction'
+                            item_id = f.get('item_id')
+                            
+                            # Check if this forecast has an error
+                            if f.get('status') == 'error':
+                                errors_found.append(f"Item {item_id}: {f.get('error', 'Unknown error')}")
+                                summary_data.append({
+                                    'Item ID': item_id,
+                                    'Total Demand': 'N/A',
+                                    'Avg Daily': 'N/A',
+                                    'Status': '❌ Error'
+                                })
+                            elif f.get('status') == 'success':
+                                # Calculate total demand from predictions array
+                                predictions = f.get('predictions', [])
+                                if predictions:
+                                    total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
+                                    avg_daily = total_demand / len(predictions) if predictions else 0
+                                    
+                                    category = f.get('category_used', 'Unknown')
+                                    summary_data.append({
+                                        'Item ID': item_id,
+                                        'Category': category,
+                                        'Total Demand': f"{total_demand:.1f}",
+                                        'Avg Daily': f"{avg_daily:.1f}",
+                                        'Status': '✅ Success'
+                                    })
                                 else:
-                                    status_display = status
-                                
-                                summary_data.append({
-                                    'Item ID': f.get('item_id'),
-                                    'Total Demand': f"{total_demand:.1f}",
-                                    'Avg Daily': f"{avg_daily:.1f}",
-                                    'Status': status_display
-                                })
-                            else:
-                                summary_data.append({
-                                    'Item ID': f.get('item_id'),
-                                    'Total Demand': '0.0',
-                                    'Avg Daily': '0.0',
-                                    'Status': '❌ No Data'
-                                })
-                        st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
+                                    summary_data.append({
+                                        'Item ID': item_id,
+                                        'Category': 'N/A',
+                                        'Total Demand': 'N/A',
+                                        'Avg Daily': 'N/A',
+                                        'Status': '❌ No Data'
+                                    })
+                        
+                        # Display results
+                        if summary_data:
+                            st.dataframe(pd.DataFrame(summary_data), width="stretch", hide_index=True)
+                        
+                        # Show errors if any
+                        if errors_found:
+                            st.error("⚠️ Some forecasts failed:")
+                            for err in errors_found:
+                                st.warning(err)
             except Exception as e: st.error(f"Error: {str(e)}")
      
     with tab4:

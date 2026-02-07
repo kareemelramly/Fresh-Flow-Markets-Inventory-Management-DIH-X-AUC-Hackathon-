@@ -4,12 +4,17 @@ Unified service for all ML model predictions
 """
 
 import os
+import sys
 import joblib
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import json
+
+# Import StockForecaster from ML_Models
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'ML_Models', 'stock_forecaster', 'Guide_to_use'))
+from model import StockForecaster
 
 class MLPredictionService:
     """
@@ -52,16 +57,37 @@ class MLPredictionService:
         # Cache for item-specific forecast models
         self.item_forecast_models = {}
         
-        # Category mapping for items without specific models
+        # Initialize category-based Stock Forecaster
+        try:
+            self.stock_forecaster = StockForecaster(
+                models_dir=os.path.join(self.models_dir, 'stock_forecaster')
+            )
+        except Exception as e:
+            print(f"Warning: Could not initialize StockForecaster: {e}")
+            self.stock_forecaster = None
+        
+        # Category mapping for items - matches model categories
         self.category_keywords = {
-            'Sodavand': ['cola', 'sodavand', 'naturfrisk', 'lemonade', 'fanta', 'sprite', 'pepsi', 'soda'],
-            'Vand': ['water', 'vand', 'kildevand', 'still water', 'sparkling'],
-            'Øl': ['øl', 'beer', 'fadøl', 'pilsner', 'ipa', 'lager', 'ale'],
-            'Cappuccino': ['cappuccino', 'latte', 'americano', 'kaffe', 'espresso', 'coffee', 'flat white'],
+            # Specific Danish products
+            'Sodavand': ['cola', 'sodavand', 'naturfrisk', 'lemonade', 'fanta', 'sprite', 'pepsi', 'soda', 'cocio'],
+            'Vand': ['water', 'vand', 'kildevand', 'still water', 'sparkling', 'danskvand'],
+            'Øl': ['øl', 'beer', 'fadøl', 'pilsner', 'ipa', 'lager', 'ale', 'tuborg', 'carlsberg'],
+            'Cappuccino': ['cappuccino', 'latte', 'americano', 'kaffe', 'espresso', 'coffee', 'flat white', 'macchiato'],
             'Lille_box': ['lille box', 'small box', 'lille'],
-            'Mellem_box': ['mellem box', 'medium box', 'mellem', 'stor box', 'large box'],
-            'Ristet_Hotdog': ['hotdog', 'ristet', 'fransk', 'pølse'],
-            'Øl_Vand_Spiritus': ['spiritus', 'vodka', 'gin', 'rum'],
+            'Mellem_box': ['mellem box', 'medium box', 'mellem'],
+            'Ristet_Hotdog': ['hotdog', 'ristet', 'fransk', 'pølse', 'hot dog'],
+            'Øl_Vand_Spiritus': ['spiritus', 'vodka', 'gin', 'rum', 'whisky', 'liquor', 'alkohol'],
+            # Broad categories
+            'Beverages': ['juice', 'smoothie', 'shake', 'milkshake', 'drink', 'beverage', 'te', 'tea'],
+            'Handhelds': ['sandwich', 'wrap', 'burger', 'panini', 'toast', 'roll'],
+            'Breakfast_&_Brunch': ['breakfast', 'brunch', 'morgenmad', 'oatmeal', 'yogurt', 'granola', 'croissant'],
+            'Desserts_&_Sweets': ['dessert', 'cake', 'pastry', 'cookie', 'brownie', 'sweet', 'ice cream', 'kage'],
+            'Main_Courses': ['main', 'course', 'meal', 'dinner', 'lunch', 'pasta', 'chicken', 'fish', 'beef'],
+            'Salads_&_Greens': ['salad', 'salat', 'greens', 'vegetables', 'veggie'],
+            'Sides_&_Snacks': ['side', 'snack', 'fries', 'chips', 'pommes', 'nachos'],
+            'Sushi_&_Asian': ['sushi', 'asian', 'noodles', 'rice', 'ramen', 'poke', 'wok'],
+            'Misc_Services': ['service', 'delivery', 'fee', 'charge'],
+            'Other_Uncategorized': []  # Fallback
         }
     
     def _load_model_artifacts(self, model_type: str) -> Dict[str, Any]:
@@ -218,93 +244,128 @@ class MLPredictionService:
         item_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Predict demand for an item over the next N days
+        Predict demand for an item over the next N days using category-based forecasting
         
         Args:
             item_id: Item ID to forecast
             forecast_days: Number of days to forecast ahead
-            is_holiday: Whether forecast period includes holidays
-            is_weekend: Whether forecast period includes weekends
-            campaign_active: Whether a campaign will be running
-            price: Item price (if None, uses current price)
-            item_name: Item name (for loading appropriate model)
+            is_holiday: Whether forecast period includes holidays (for adjustments)
+            is_weekend: Whether forecast period includes weekends (for adjustments)
+            campaign_active: Whether a campaign will be running (for adjustments)
+            price: Item price (optional, not used in new model)
+            item_name: Item name (for category mapping)
         
         Returns:
             Dictionary with forecast data and recommendations
         """
-        # Try to load item-specific model
-        model_artifacts = None
-        if item_name:
-            model_artifacts = self._load_item_forecast_model(item_name)
-        
-        if model_artifacts is None or model_artifacts.get('model') is None:
-            # Return fallback with simple average if model not available
+        # Check if StockForecaster is available
+        if not self.stock_forecaster:
             return {
-                'status': 'model_not_available',
-                'message': f'Demand forecasting model not available for item: {item_name or item_id}',
+                'status': 'error',
+                'error': 'Stock forecasting model not initialized. Cannot generate predictions.',
                 'item_id': item_id,
-                'forecast_days': forecast_days,
-                'predictions': self._generate_fallback_forecast(forecast_days, is_holiday, campaign_active),
-                'note': 'Using historical average fallback'
+                'forecast_days': forecast_days
             }
         
-        # Prepare future dates
-        predictions = []
+        # Map item name to category
+        if not item_name:
+            return {
+                'status': 'error',
+                'error': 'Item name is required for category-based forecasting. Cannot proceed without item information.',
+                'item_id': item_id,
+                'forecast_days': forecast_days
+            }
+        
+        category = self._map_item_to_category(item_name)
+        if not category:
+            # Use fallback category
+            category = 'Other_Uncategorized'
+        
+        # Try to predict using category-based model
         try:
+            # Use average last_qty as baseline (could be improved by querying recent orders)
+            # For now, use a reasonable default based on category
+            last_qty = 50.0  # Default baseline
+            
+            # Generate daily predictions
+            predictions = []
+            
             for day_offset in range(forecast_days):
                 pred_date = datetime.now() + timedelta(days=day_offset + 1)
                 
-                # Create features for this day
-                features = pd.DataFrame([{
-                    'day_of_week': pred_date.weekday(),
-                    'month': pred_date.month,
-                    'day': pred_date.day,
-                    'is_weekend': int(pred_date.weekday() >= 5),
-                    'is_holiday': int(is_holiday),
-                    'campaign_active': int(campaign_active)
-                }])
+                # Get day-specific features
+                day_of_week = pred_date.weekday()
+                is_weekend_day = 1 if day_of_week >= 5 else 0
+                is_holiday_day = 1 if is_holiday else 0
+                month = pred_date.month
                 
-                # Scale if scaler available
-                if model_artifacts.get('scaler'):
-                    features_scaled = model_artifacts['scaler'].transform(features)
-                else:
-                    features_scaled = features.values
+                # Get prediction for this specific day with all features
+                daily_qty = self.stock_forecaster.predict(
+                    category_name=category,
+                    month=month,
+                    last_qty=last_qty,
+                    day_of_week=day_of_week,
+                    is_weekend=is_weekend_day,
+                    is_holiday=is_holiday_day
+                )
                 
-                # Predict
-                quantity = model_artifacts['model'].predict(features_scaled)[0]
+                # Apply campaign boost if active
+                if campaign_active:
+                    daily_qty *= 1.2  # 20% boost for campaigns
                 
                 predictions.append({
                     'date': pred_date.strftime('%Y-%m-%d'),
-                    'predicted_quantity': max(0, round(float(quantity), 2)),
+                    'predicted_quantity': max(0, round(float(daily_qty), 2)),
                     'day_of_week': pred_date.strftime('%A'),
                     'is_weekend': pred_date.weekday() >= 5
                 })
-        
-        except Exception as e:
-            # Feature mismatch or other prediction error - fall back to simple forecast
-            print(f"Model prediction failed ({type(e).__name__}: {e}), using fallback forecast")
+                
+                # Update last_qty for next iteration (use predicted value)
+                last_qty = daily_qty
+            
+            # Calculate actual total from distributed predictions
+            total_predicted = sum(p['predicted_quantity'] for p in predictions)
+            
+            # Get model accuracy (MAE) if available
+            mae = self.stock_forecaster.get_mean_absolute_error(category)
+            accuracy_note = f" (Model MAE: {mae:.2f})" if mae else ""
+            
             return {
-                'status': 'model_incompatible',
-                'message': f'Model loaded but incompatible with current features. Using fallback estimate.',
+                'status': 'success',
                 'item_id': item_id,
                 'forecast_days': forecast_days,
-                'predictions': self._generate_fallback_forecast(forecast_days, is_holiday, campaign_active),
-                'note': f'Model error: {type(e).__name__}'
+                'category_used': category,
+                'message': f'Forecast based on {category} category model{accuracy_note}',
+                'predictions': predictions,
+                'summary': {
+                    'total_predicted_demand': round(total_predicted, 2),
+                    'avg_daily_demand': round(total_predicted / forecast_days, 2),
+                    'peak_day': max(predictions, key=lambda x: x['predicted_quantity']) if predictions else None
+                }
             }
-        
-        total_predicted = sum(p['predicted_quantity'] for p in predictions)
-        
-        return {
-            'status': 'success',
-            'item_id': item_id,
-            'forecast_days': forecast_days,
-            'predictions': predictions,
-            'summary': {
-                'total_predicted_demand': round(total_predicted, 2),
-                'avg_daily_demand': round(total_predicted / forecast_days, 2),
-                'peak_day': max(predictions, key=lambda x: x['predicted_quantity']) if predictions else None
+            
+        except ValueError as e:
+            # Category not found in models
+            error_msg = str(e)
+            return {
+                'status': 'error',
+                'error': f'No trained model found for category "{category}". Available categories: {", ".join(self.stock_forecaster.categories[:5])}...',
+                'item_id': item_id,
+                'category_attempted': category,
+                'forecast_days': forecast_days
             }
-        }
+            
+        except Exception as e:
+            # Other prediction errors
+            print(f"Category prediction failed ({type(e).__name__}: {e})")
+            import traceback
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'error': f'Model prediction failed: {str(e)}',
+                'item_id': item_id,
+                'forecast_days': forecast_days
+            }
     
     def _generate_fallback_forecast(
         self, 
@@ -368,16 +429,20 @@ class MLPredictionService:
         forecast_days = lead_time_days + 7
         forecast = self.predict_demand(item_id, forecast_days, item_name=item_name)
         
-        if forecast['status'] != 'success' and forecast['status'] != 'model_not_available':
-            return forecast
+        # Check if forecast failed
+        if forecast.get('status') == 'error':
+            return forecast  # Pass through the error
         
         # Calculate needed stock - handle both cases (with and without summary)
         if 'summary' in forecast and 'total_predicted_demand' in forecast['summary']:
             total_demand = forecast['summary']['total_predicted_demand']
         else:
-            # Calculate from predictions array if summary not available
-            predictions = forecast.get('predictions', [])
-            total_demand = sum(p.get('predicted_quantity', 0) for p in predictions)
+            # If no predictions available, cannot calculate reorder
+            return {
+                'status': 'error',
+                'error': 'Cannot calculate reorder recommendations without valid demand forecast',
+                'item_id': item_id
+            }
         
         needed_stock = total_demand * safety_stock_multiplier
         reorder_qty = max(0, needed_stock - current_stock)
