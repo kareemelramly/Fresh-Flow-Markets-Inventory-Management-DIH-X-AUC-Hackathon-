@@ -119,6 +119,17 @@ def predict_item_demand():
             item_name=item.get('title')  # Add item name for model matching
         )
         
+        # Check if prediction failed
+        if forecast.get('status') == 'error':
+            return jsonify({
+                'success': False,
+                'error': forecast.get('error', 'Prediction failed'),
+                'details': {
+                    'item_id': forecast.get('item_id'),
+                    'category_attempted': forecast.get('category_attempted')
+                }
+            }), 400
+        
         # Add item details to response
         forecast['item_details'] = {
             'id': item['id'],
@@ -163,13 +174,31 @@ def get_reorder_recommendations():
         
         current_stock = data['current_stock']
         
-        # Get recommendations
+        # Get item details from database for item_name
+        item = query_db(
+            "SELECT id, title FROM dim_items WHERE id = ?",
+            [data['item_id']],
+            one=True
+        )
+        
+        # Get recommendations (pass item_name for category-based forecasting)
         recommendations = ml_service.get_reorder_recommendations(
             item_id=data['item_id'],
             current_stock=current_stock,
             lead_time_days=data.get('lead_time_days', 3),
-            safety_stock_multiplier=data.get('safety_stock_multiplier', 1.2)
+            safety_stock_multiplier=data.get('safety_stock_multiplier', 1.2),
+            item_name=item.get('title') if item else None
         )
+        
+        # Check if recommendation failed
+        if recommendations.get('status') == 'error':
+            return jsonify({
+                'success': False,
+                'error': recommendations.get('error', 'Cannot generate reorder recommendations'),
+                'details': {
+                    'item_id': recommendations.get('item_id')
+                }
+            }), 400
         
         return jsonify({'success': True, 'data': recommendations})
     

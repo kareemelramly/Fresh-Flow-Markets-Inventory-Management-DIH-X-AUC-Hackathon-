@@ -114,3 +114,13 @@ tests/
 data/Backup Before Restoration/
 data/Old data/
 data/Uncleaned Inventory Management data/
+# Large data folders excluded from repository
+data/Old data/
+data/Uncleaned Inventory Management data/
+data/Backup Before Restoration/
+archive/
+
+# ML Model files (large binary files - stored locally only)
+ML_Models/stock_forecaster/models/lstm_models/*.h5
+ML_Models/stock_forecaster/models/xgb_models/*.joblib
+ML_Models/stock_forecaster/models/scalers/*.joblib
