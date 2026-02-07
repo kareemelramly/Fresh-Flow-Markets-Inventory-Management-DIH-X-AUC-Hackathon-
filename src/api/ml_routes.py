@@ -568,85 +568,42 @@ def detect_cashier_risk():
             'traceback': traceback.format_exc()
         }), 500
 
-@ml_bp.route('/operations/cashier-risk-auto', methods=['POST'])
-def detect_cashier_risk_auto():
+@ml_bp.route('/operations/cashier-risk-lookup/<int:cashier_id>', methods=['GET'])
+def get_cashier_risk_lookup(cashier_id):
     """
-    Detect cashier anomalies - SIMPLIFIED VERSION
-    Auto-calculates all 20 features from database using only cashier_id
+    Quick lookup of pre-calculated cashier risk assessment
     
-    Request Body:
-    {
-        "cashier_id": 22354,
-        "start_date": "2025-01-01",  # Optional
-        "end_date": "2026-02-07",    # Optional
-        "days_back": 30              # Optional, default 30
-    }
+    URL Parameter:
+        cashier_id: The cashier user ID to look up
     
     Response:
     {
         "success": true,
         "data": {
             "cashier_id": 22354,
-            "risk_assessment": {...},
-            "financial_metrics": {...},
-            "recommended_actions": [...]
+            "risk_level": 1,
+            "risk_probability": 1.0,
+            "risk_category": "CRITICAL",
+            "balance_discrepancy_pct_max": 27100.0,
+            "balance_diff_sum": 101066.0,
+            "num_transactions_sum": 1531.0,
+            "transaction_total_sum": 213647.75,
+            "vat_component_sum": 32047.1625,
+            "anomaly_score": -0.3297787310026391
         }
     }
     """
     try:
-        data = request.json
+        # Get pre-calculated risk assessment from CSV
+        assessment = ml_service.get_cashier_risk_from_csv(cashier_id)
         
-        # Validate required fields
-        if 'cashier_id' not in data:
+        if assessment:
+            return jsonify({'success': True, 'data': assessment})
+        else:
             return jsonify({
                 'success': False,
-                'error': 'Missing required field: cashier_id'
-            }), 400
-        
-        # Import feature calculator
-        import sys
-        sys.path.insert(0, 'src')
-        from utils.cashier_feature_calculator import CashierFeatureCalculator
-        
-        # Calculate features from database
-        calculator = CashierFeatureCalculator()
-        result = calculator.get_cashier_features(
-            cashier_id=data['cashier_id'],
-            start_date=data.get('start_date'),
-            end_date=data.get('end_date'),
-            days_back=data.get('days_back', 30)
-        )
-        
-        if result['status'] != 'success':
-            return jsonify({
-                'success': False,
-                'error': f"Failed to calculate features: {result.get('message')}"
-            }), 500
-        
-        if not result['metadata']['has_data']:
-            return jsonify({
-                'success': False,
-                'error': f"No data found for cashier {data['cashier_id']} in the specified period"
+                'error': f'Cashier {cashier_id} not found in pre-calculated assessments'
             }), 404
-        
-        # Get features and add to request
-        features = result['features']
-        
-        # Call the ML service with calculated features
-        detection = ml_service.detect_cashier_anomalies(
-            cashier_id=data['cashier_id'],
-            shift_date=result['metadata']['end_date'],
-            **features  # Unpack all 20 features
-        )
-        
-        # Add metadata to response
-        detection['data_period'] = {
-            'start_date': result['metadata']['start_date'],
-            'end_date': result['metadata']['end_date'],
-            'days_analyzed': result['metadata']['days_analyzed']
-        }
-        
-        return jsonify({'success': True, 'data': detection})
     
     except Exception as e:
         return jsonify({

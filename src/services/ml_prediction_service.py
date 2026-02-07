@@ -839,6 +839,54 @@ class MLPredictionService:
     # UTILITY METHODS
     # ========================================================================
     
+    def get_cashier_risk_from_csv(self, cashier_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Look up cashier risk assessment from pre-calculated CSV file
+        
+        Args:
+            cashier_id: Cashier user ID to look up
+            
+        Returns:
+            Dictionary with risk assessment data or None if not found
+        """
+        csv_path = os.path.join(
+            self.models_dir,
+            'Operational_risk_predictors',
+            'data',
+            'all_cashiers_risk_assessment.csv'
+        )
+        
+        if not os.path.exists(csv_path):
+            return None
+        
+        try:
+            df = pd.read_csv(csv_path)
+            
+            # Find cashier
+            cashier_data = df[df['cashier_id'] == cashier_id]
+            
+            if cashier_data.empty:
+                return None
+            
+            # Get first row (should only be one per cashier)
+            row = cashier_data.iloc[0]
+            
+            return {
+                'cashier_id': int(row['cashier_id']),
+                'risk_level': int(row['risk_level']),
+                'risk_probability': float(row['risk_probability']),
+                'balance_discrepancy_pct_max': float(row['balance_discrepancy_pct_max']),
+                'balance_diff_sum': float(row['balance_diff_sum']),
+                'num_transactions_sum': float(row['num_transactions_sum']),
+                'transaction_total_sum': float(row['transaction_total_sum']),
+                'vat_component_sum': float(row['vat_component_sum']),
+                'anomaly_score': float(row['anomaly_score']),
+                'risk_category': str(row['risk_category'])
+            }
+        except Exception as e:
+            print(f"Error reading cashier CSV: {e}")
+            return None
+    
     def get_available_models(self) -> Dict[str, bool]:
         """Get status of all available models"""
         return {

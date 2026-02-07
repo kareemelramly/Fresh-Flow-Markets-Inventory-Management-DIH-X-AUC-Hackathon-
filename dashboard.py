@@ -657,97 +657,66 @@ def show_forecasting():
 
     with tab6:
         st.subheader("🏪 Cashier Integrity & Operational Risk Monitor")
-        st.markdown("Detect anomalies in cashier performance using aggregated shift data.")
+        st.markdown("Detect anomalies in cashier performance using pre-calculated risk assessments.")
         
-        # Simplified Auto-Calculate Version
-        st.markdown("### 🚀 Auto-Calculate from Database")
-        st.info("⚡ **Smart Mode**: Just enter Cashier ID - all 20 features are calculated automatically from your database!")
+        # Quick Lookup from Pre-calculated Data
+        st.markdown("### 🔍 Quick Risk Lookup")
+        st.info("⚡ **Fast Mode**: Enter Cashier ID to get pre-calculated risk assessment from historical analysis (697 cashiers analyzed)")
         
-        with st.form("cashier_auto_form"):
-            col1, col2, col3 = st.columns(3)
+        with st.form("cashier_lookup_form"):
+            col1, col2 = st.columns([2, 1])
             with col1:
-                cashier_id_auto = st.number_input("Cashier ID", min_value=1, value=22354, key="auto_cashier")
+                cashier_id_lookup = st.number_input("Cashier ID", min_value=1, value=22354, key="lookup_cashier", 
+                                                   help="Try 22354 for a known high-risk example")
             with col2:
-                days_back = st.number_input("Days to Analyze", min_value=1, max_value=365, value=180, 
-                                           help="Recommended: 180-365 days for historical data", key="days_back")
-            with col3:
                 st.write("")  # Spacing
                 
-            submit_auto = st.form_submit_button("🔍 Analyze Cashier Risk", type="primary")
+            submit_lookup = st.form_submit_button("🔍 Get Risk Assessment", type="primary")
         
-        if submit_auto:
-            with st.spinner(f"Analyzing cashier {cashier_id_auto} over last {days_back} days..."):
+        if submit_lookup:
+            with st.spinner(f"Looking up cashier {cashier_id_lookup}..."):
                 try:
-                    payload_auto = {
-                        "cashier_id": cashier_id_auto,
-                        "days_back": days_back
-                    }
-                    response = requests.post(f"{API_BASE}/api/ml/operations/cashier-risk-auto", json=payload_auto, timeout=30)
+                    response = requests.get(f"{API_BASE}/api/ml/operations/cashier-risk-lookup/{cashier_id_lookup}", timeout=10)
                     
                     if response.status_code == 200:
                         res = response.json()
                         if res.get('success'):
                             result = res.get('data', {})
                             
-                            if result.get('status') == 'success':
-                                st.success("✅ Analysis Complete!")
-                                
-                                risk = result.get('risk_assessment', {})
-                                fin = result.get('financial_metrics', {})
-                                ops = result.get('operational_metrics', {})
-                                period = result.get('data_period', {})
-                                
-                                # Display period info
-                                st.caption(f"📅 Period: {period.get('start_date')} to {period.get('end_date')} ({period.get('days_analyzed')} days)")
-                                
-                                # Risk Metrics
-                                col1, col2, col3, col4 = st.columns(4)
-                                risk_pct = risk.get('risk_score', 0) * 100
-                                col1.metric("Risk Score", f"{risk_pct:.1f}%")
-                                col2.metric("Risk Level", risk.get('risk_level', 'N/A').upper())
-                                col3.metric("Transactions", ops.get('num_transactions', 0))
-                                col4.metric("Action Required", "Yes" if risk.get('requires_action') else "No")
-                                
-                                # Risk Level Indicator
-                                if risk_pct >= 50:
-                                    st.error(f"🚨 **{risk.get('alert_type', 'Alert').upper()}** - Immediate attention required!")
-                                elif risk_pct >= 30:
-                                    st.warning(f"⚠️ **{risk.get('alert_type', 'Warning').upper()}**")
-                                else:
-                                    st.success("✅ Normal operations")
-                                
-                                # Financial Details
-                                st.markdown("#### 💰 Financial Overview")
-                                f_col1, f_col2 = st.columns(2)
-                                with f_col1:
-                                    st.metric("Balance Discrepancy", f"${fin.get('balance_diff_sum', 0):,.2f}")
-                                    st.metric("Total Transactions", f"${fin.get('transaction_total', 0):,.2f}")
-                                with f_col2:
-                                    st.metric("Max Discrepancy %", f"{fin.get('balance_discrepancy_pct', 0):,.1f}%")
-                                    st.metric("Total VAT", f"${fin.get('total_vat', 0):,.2f}")
-                                
-                                # Recommended Actions
-                                st.markdown("#### 📋 Recommended Actions")
-                                for action in result.get('recommended_actions', []):
-                                    st.write(f"- {action}")
-                                    
+                            st.success("✅ Cashier Found!")
+                            
+                            # Display risk info
+                            col1, col2, col3, col4 = st.columns(4)
+                            risk_prob = result.get('risk_probability', 0) * 100
+                            col1.metric("Risk Probability", f"{risk_prob:.1f}%")
+                            col2.metric("Risk Category", result.get('risk_category', 'N/A'))
+                            col3.metric("Total Transactions", f"{result.get('num_transactions_sum', 0):,.0f}")
+                            col4.metric("Transaction Total", f"${result.get('transaction_total_sum', 0):,.2f}")
+                            
+                            # Risk Level Indicator
+                            if result.get('risk_category') == 'CRITICAL':
+                                st.error(f"🚨 **CRITICAL RISK** - Immediate attention required!")
+                            elif result.get('risk_category') == 'HIGH':
+                                st.warning(f"⚠️ **HIGH RISK** - Review required")
+                            elif result.get('risk_category') == 'MEDIUM':
+                                st.info(f"🔵 **MEDIUM RISK** - Monitor closely")
                             else:
-                                st.error(f"Error: {result.get('message', 'Unknown error')}")
+                                st.success("✅ **LOW RISK** - Normal operations")
+                            
+                            # Financial Details
+                            st.markdown("#### 💰 Key Metrics")
+                            f_col1, f_col2 = st.columns(2)
+                            with f_col1:
+                                st.metric("Max Discrepancy %", f"{result.get('balance_discrepancy_pct_max', 0):,.1f}%")
+                                st.metric("Balance Difference", f"${result.get('balance_diff_sum', 0):,.2f}")
+                            with f_col2:
+                                st.metric("VAT Component", f"${result.get('vat_component_sum', 0):,.2f}")
+                                st.metric("Anomaly Score", f"{result.get('anomaly_score', 0):.3f}")
                         else:
                             st.error(f"❌ {res.get('error', 'Unknown error')}")
                     elif response.status_code == 404:
-                        st.warning(f"⚠️ No data found for cashier {cashier_id_auto} in the last {days_back} days")
-                        
-                        # Try to find available data range
-                        st.info("💡 **Suggestion**: Try analyzing a longer period (90-365 days) for historical cashiers.")
-                        
-                        # Quick tip for historical data
-                        st.markdown("""
-                        **Common Issues:**
-                        - Cashier may be inactive recently
-                        - Historical data ends before the selected time window
-                        - Try 365 days to get full historical analysis
-                        """)
+                        st.warning(f"⚠️ Cashier {cashier_id_lookup} not found in pre-calculated assessments")
+                        st.info("💡 Try the Manual Entry option below to analyze this cashier")
                     else:
                         st.error(f"API Error {response.status_code}: {response.text}")
                 except Exception as e:
@@ -756,8 +725,8 @@ def show_forecasting():
         st.markdown("---")
         
         # Advanced Manual Entry (Collapsible)
-        with st.expander("🔧 Advanced: Manual Feature Entry", expanded=False):
-            st.warning("⚠️ **Expert Mode**: Manually enter all 20 statistical features. Most users should use Auto-Calculate above.")
+        with st.expander("🔧 Advanced: Manual Feature Entry (For New Data)", expanded=False):
+            st.warning("⚠️ **Expert Mode**: Manually enter all 20 statistical features for cashiers not in the database.")
             st.markdown("### Enter Aggregated Cashier Statistics")
         
         col1, col2 = st.columns(2)
